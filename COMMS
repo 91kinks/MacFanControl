@@ -4,3 +4,81 @@ Warning: No available formula with the name "smckit".
 ==> Searching for similarly named formulae and 
 ==> Casks
 skint
+=============================================================
+koryinks@KMBP MacFanControl % which smc
+smc not found
+koryinks@KMBP MacFanControl % which smckit
+smckit not found
+koryinks@KMBP MacFanControl % system_profiler SPHardwareDataType
+Hardware:
+
+    Hardware Overview:
+
+      Model Name: MacBook Pro
+      Model Identifier: MacBookPro11,5
+      Processor Name: Quad-Core Intel Core i7
+      Processor Speed: 2.8 GHz
+      Number of Processors: 1
+      Total Number of Cores: 4
+      L2 Cache (per Core): 256 KB
+      L3 Cache: 6 MB
+      Hyper-Threading Technology: Enabled
+      Memory: 16 GB
+      System Firmware Version: 489.0.0.0.0
+      OS Loader Version: 540.120.3~37
+      SMC Version (system): 2.30f2
+      Serial Number (system): C02RV1AVG8WM
+      Hardware UUID: 253EBD73-7672-5497-ABA9-D181B6F7FF62
+      Provisioning UDID: 253EBD73-7672-5497-ABA9-D181B6F7FF62
+
+koryinks@KMBP MacFanControl % brew search smc
+==> Formulae
+chrome-devtools-mcp     swc
+kubernetes-mcp-server   src
+osmcoastline            sic
+prism-cli               shc
+rails-mcp-server        sec
+wasm-component-ld       scc
+smu
+
+==> Casks
+jmc (disabled)          smcfancontrol
+osmc (deprecated)       smcfancontrol@beta
+
+koryinks@KMBP MacFanControl % brew search fan
+==> Formulae
+diff-so-fancy
+fancy-cat
+fann
+fantom
+fanyi
+grafana
+grafana-agent (disabled)
+grafana-alloy
+grafanactl
+mcp-grafana
+profanity
+vcfanno
+pan
+xan
+
+==> Casks
+fanny
+fantastical
+fantasy-grounds (disabled)
+final-fantasy-xiv-online
+fman
+font-cormorant-infant
+font-dawning-of-a-new-day
+font-fandol
+font-fantasque-sans-mono
+font-fantasque-sans-mono-nerd-font
+font-fantasque-sans-mono-noloopk
+font-fanwood-text
+font-fzfangsong-z02 (disabled)
+font-ysabeau-infant
+font-zhuque-fangsong
+jan
+macs-fan-control
+smcfancontrol
+smcfancontrol@beta
