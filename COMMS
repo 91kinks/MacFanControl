@@ -82,3 +82,18 @@ jan
 macs-fan-control
 smcfancontrol
 smcfancontrol@beta
+
+=========================================
+koryinks@KMBP MacFanControl % brew info smcfancontrol
+==> smcfancontrol ✘ (smcFanControl): 2.6
+Sets a minimum speed for built-in fans
+https://github.com/hholtmann/smcFanControl
+Not installed
+From: https://github.com/Homebrew/homebrew-cask/blob/HEAD/Casks/s/smcfancontrol.rb
+==> Requirements
+Required: macOS ✔
+==> Artifacts
+smcFanControl.app (App)
+==> Downloading https://formulae.brew.sh/api/ca
+==> Analytics
+install: 322 (30 days), 1,028 (90 days), 3,359 (365 days)
