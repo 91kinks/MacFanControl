@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+*.spec
+
+# PyInstaller output (keep the exe out of the repo — distribute via Releases)
+dist/
+build/
+
+# Environments
+.env
+venv/
+env/
+.conda/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+
+# EXE
+*.exe
+
+# Config
+config.ini
