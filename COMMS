@@ -83,7 +83,9 @@ macs-fan-control
 smcfancontrol
 smcfancontrol@beta
 
-=========================================
+==============================================================
+koryinks@KMBP MacFanControl % xcode-select -p
+/Library/Developer/CommandLineTools
 koryinks@KMBP MacFanControl % brew info smcfancontrol
 ==> smcfancontrol ✘ (smcFanControl): 2.6
 Sets a minimum speed for built-in fans
