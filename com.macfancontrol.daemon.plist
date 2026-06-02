@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+
+    <!-- Unique identifier for this launch agent -->
+    <key>Label</key>
+    <string>com.macfancontrol.daemon</string>
+
+    <!-- Command to run -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/bin/python3</string>
+        <string>/Users/koryinks/MacFanControl/daemon.py</string>
+        <string>--config</string>
+        <string>/Users/koryinks/MacFanControl/config.json</string>
+    </array>
+
+    <!-- Start automatically on login -->
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- Restart automatically if it crashes -->
+    <key>KeepAlive</key>
+    <true/>
+
+    <!-- Log stdout and stderr so you can see what the daemon is doing -->
+    <key>StandardOutPath</key>
+    <string>/Users/koryinks/MacFanControl/logs/daemon.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/koryinks/MacFanControl/logs/daemon.err</string>
+
+    <!-- Working directory -->
+    <key>WorkingDirectory</key>
+    <string>/Users/koryinks/MacFanControl</string>
+
+    <!-- Give the daemon a clean environment -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin</string>
+    </dict>
+
+</dict>
+</plist>
