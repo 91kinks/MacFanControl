@@ -1,0 +1,33 @@
+{
+    "binary": "native/macfan_smc",
+
+    "sensor": {
+        "gpu_temp_key": "TG0D",
+        "cpu_temp_key": "TC1C"
+    },
+
+    "poll_interval_seconds": 3,
+
+    "fan0": {
+        "label": "Left side",
+        "floor_rpm": 2600,
+        "max_rpm": 6156
+    },
+
+    "fan1": {
+        "label": "Right side",
+        "floor_rpm": 2600,
+        "max_rpm": 5700
+    },
+
+    "curve": {
+        "start_temp":  66,
+        "max_temp":    95,
+        "hysteresis":   4
+    },
+
+    "safety": {
+        "emergency_temp": 95,
+        "sensor_fail_action": "auto"
+    }
+}

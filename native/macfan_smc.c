@@ -197,10 +197,13 @@ static kern_return_t set_forced_mode(UInt16 bitmask)
 /* -------------------------------------------------------------------------
  * cmd_set_rpm
  *
- * Sets both fans to a fixed RPM in forced mode.
- * Clamps to each fan's min/max read live from the SMC.
+ * Sets each fan to an independent target RPM in forced mode.
+ * Clamps each target to that fan's min/max read live from the SMC.
+ *
+ * rpm0 = target for fan 0 (left)
+ * rpm1 = target for fan 1 (right)
  * ------------------------------------------------------------------------- */
-static void cmd_set_rpm(int rpm)
+static void cmd_set_rpm(int rpm0, int rpm1)
 {
     kern_return_t result;
     SMCVal_t      val;
@@ -224,13 +227,13 @@ static void cmd_set_rpm(int rpm)
     SMCReadKey(key, &val);
     max1 = (int)getFloatFromVal(val);
 
-    /* Clamp requested RPM to valid range for each fan */
-    int target0 = rpm < min0 ? min0 : (rpm > max0 ? max0 : rpm);
-    int target1 = rpm < min1 ? min1 : (rpm > max1 ? max1 : rpm);
+    /* Clamp each target to its own fan's valid range */
+    int target0 = rpm0 < min0 ? min0 : (rpm0 > max0 ? max0 : rpm0);
+    int target1 = rpm1 < min1 ? min1 : (rpm1 > max1 ? max1 : rpm1);
 
     printf("Fan limits:  Fan0 %d-%d RPM  Fan1 %d-%d RPM\n",
            min0, max0, min1, max1);
-    printf("Requesting:  %d RPM\n", rpm);
+    printf("Requesting:  Fan0 %d RPM  Fan1 %d RPM\n", rpm0, rpm1);
     printf("Targets:     Fan0 %d RPM  Fan1 %d RPM\n", target0, target1);
 
     /* Step 1: enable forced mode for both fans (bitmask 0x0003) */
@@ -242,7 +245,7 @@ static void cmd_set_rpm(int rpm)
     }
     printf("Forced mode: enabled\n");
 
-    /* Step 2: write target RPM to both fans */
+    /* Step 2: write independent target RPM to each fan */
     sprintf(key, "F%cTg", fannum[0]);
     result = write_fpe2(key, target0);
     if (result != kIOReturnSuccess)
@@ -288,7 +291,7 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Usage:\n");
         fprintf(stderr, "  %s temps        - list all temperature sensors\n", argv[0]);
         fprintf(stderr, "  %s fans         - list all fan info\n", argv[0]);
-        fprintf(stderr, "  %s set-rpm <n>  - set both fans to n RPM\n", argv[0]);
+        fprintf(stderr, "  %s set-rpm <f0> <f1>  - set fan0 and fan1 RPM independently\n", argv[0]);
         fprintf(stderr, "  %s set-auto     - return fans to auto control\n", argv[0]);
         return 1;
     }
@@ -301,21 +304,22 @@ int main(int argc, char *argv[])
         cmd_fans();
     else if (strcmp(argv[1], "set-rpm") == 0)
     {
-        if (argc < 3)
+        if (argc < 4)
         {
-            fprintf(stderr, "ERROR: set-rpm requires an RPM value\n");
-            fprintf(stderr, "  Example: %s set-rpm 3000\n", argv[0]);
+            fprintf(stderr, "ERROR: set-rpm requires two RPM values (fan0 fan1)\n");
+            fprintf(stderr, "  Example: %s set-rpm 3000 2800\n", argv[0]);
             smc_close();
             return 1;
         }
-        int rpm = atoi(argv[2]);
-        if (rpm < 1000 || rpm > 7000)
+        int rpm0 = atoi(argv[2]);
+        int rpm1 = atoi(argv[3]);
+        if (rpm0 < 1000 || rpm0 > 7000 || rpm1 < 1000 || rpm1 > 7000)
         {
-            fprintf(stderr, "ERROR: RPM value %d is out of safe range (1000-7000)\n", rpm);
+            fprintf(stderr, "ERROR: RPM values must be in range 1000-7000\n");
             smc_close();
             return 1;
         }
-        cmd_set_rpm(rpm);
+        cmd_set_rpm(rpm0, rpm1);
     }
     else if (strcmp(argv[1], "set-auto") == 0)
         cmd_set_auto();
