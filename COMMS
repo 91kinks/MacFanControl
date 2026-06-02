@@ -407,3 +407,69 @@ int main(int argc, char *argv[])
     ^
 7 warnings and 1 error generated.
 make: *** [macfan_smc] Error 1
+=====================================================
+koryinks@KMBP native % make
+clang -DCMD_TOOL_BUILD -Wall -O2 -framework IOKit -framework CoreFoundation -o macfan_smc macfan_smc.c
+In file included from macfan_smc.c:23:
+./smc.c:37:1: warning: 'OSSpinLock' is deprecated: first deprecated in macOS 10.12 - Use os_unfair_lock() from <os/lock.h> instead [-Wdeprecated-declarations]
+OSSpinLock g_keyInfoSpinLock = 0;
+^
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/libkern/OSSpinLockDeprecated.h:79:17: note: 'OSSpinLock' has been explicitly marked deprecated here
+typedef int32_t OSSpinLock OSSPINLOCK_DEPRECATED_REPLACE_WITH(os_unfair_lock);
+                ^
+In file included from macfan_smc.c:23:
+./smc.c:294:2: warning: 'IOMasterPort' is deprecated: first deprecated in macOS 12.0 [-Wdeprecated-declarations]
+        IOMasterPort(MACH_PORT_NULL, &masterPort);
+        ^~~~~~~~~~~~
+        kIOMainPortDefault
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks/IOKit.framework/Headers/IOKitLib.h:143:1: note: 'IOMasterPort' has been explicitly marked deprecated here
+IOMasterPort( mach_port_t       bootstrapPort,
+^
+In file included from macfan_smc.c:23:
+./smc.c:346:5: warning: 'OSSpinLockLock' is deprecated: first deprecated in macOS 10.12 - Use os_unfair_lock_lock() from <os/lock.h> instead [-Wdeprecated-declarations]
+    OSSpinLockLock(&g_keyInfoSpinLock);
+    ^
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/libkern/OSSpinLockDeprecated.h:99:9: note: 'OSSpinLockLock' has been explicitly marked deprecated here
+void    OSSpinLockLock( volatile OSSpinLock *__lock );
+        ^
+In file included from macfan_smc.c:23:
+./smc.c:379:5: warning: 'OSSpinLockUnlock' is deprecated: first deprecated in macOS 10.12 - Use os_unfair_lock_unlock() from <os/lock.h> instead [-Wdeprecated-declarations]
+    OSSpinLockUnlock(&g_keyInfoSpinLock);
+    ^
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/libkern/OSSpinLockDeprecated.h:105:9: note: 'OSSpinLockUnlock' has been explicitly marked deprecated here
+void    OSSpinLockUnlock( volatile OSSpinLock *__lock );
+        ^
+In file included from macfan_smc.c:23:
+./smc.c:395:23: warning: format string is not a string literal (potentially insecure) [-Wformat-security]
+    sprintf(val->key, key);
+                      ^~~
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/secure/_stdio.h:47:56: note: expanded from macro 'sprintf'
+  __builtin___sprintf_chk (str, 0, __darwin_obsz(str), __VA_ARGS__)
+                                                       ^~~~~~~~~~~
+./smc.c:395:23: note: treat the string as an argument to avoid this
+    sprintf(val->key, key);
+                      ^
+                      "%s", 
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/secure/_stdio.h:47:56: note: expanded from macro 'sprintf'
+  __builtin___sprintf_chk (str, 0, __darwin_obsz(str), __VA_ARGS__)
+                                                       ^
+In file included from macfan_smc.c:23:
+./smc.c:668:22: warning: format string is not a string literal (potentially insecure) [-Wformat-security]
+    sprintf(val.key, key);
+                     ^~~
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/secure/_stdio.h:47:56: note: expanded from macro 'sprintf'
+  __builtin___sprintf_chk (str, 0, __darwin_obsz(str), __VA_ARGS__)
+                                                       ^~~~~~~~~~~
+./smc.c:668:22: note: treat the string as an argument to avoid this
+    sprintf(val.key, key);
+                     ^
+                     "%s", 
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/secure/_stdio.h:47:56: note: expanded from macro 'sprintf'
+  __builtin___sprintf_chk (str, 0, __darwin_obsz(str), __VA_ARGS__)
+                                                       ^
+In file included from macfan_smc.c:23:
+./smc.c:421:2: error: unterminated conditional directive
+#ifdef CMD_TOOL_BUILD
+ ^
+6 warnings and 1 error generated.
+make: *** [macfan_smc] Error 1
