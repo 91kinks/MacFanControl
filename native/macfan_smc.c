@@ -2,48 +2,37 @@
  * macfan_smc.c
  * MacFanControl - Lightweight SMC helper for MacBookPro11,5
  *
- * Wraps the smcFanControl smc.c library with a simple command interface
- * designed to be called from Python via subprocess.
- *
  * Usage:
- *   ./macfan_smc temps    - dump all temperature keys (SP78 format)
+ *   ./macfan_smc temps    - dump all temperature keys
  *   ./macfan_smc fans     - dump all fan info (RPM, min, max, mode)
- *
- * Build:
- *   make (see Makefile)
- *
- * All SMC access is isolated here. Python never touches IOKit directly.
  */
 
+#include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <IOKit/IOKitLib.h>
+#include <libkern/OSAtomic.h>
 
-/* Pull in the full smcFanControl implementation.
- * CMD_TOOL_BUILD enables the command-line functions (smc_init, smc_close,
- * SMCReadKey, SMCWriteKey, SMCPrintFans, SMCPrintTemps, etc.)
- * We define it here before including so smc.c compiles those sections in. */
+/* Must come before including smc.c so the CMD_TOOL_BUILD sections compile in.
+ * The -DCMD_TOOL_BUILD flag on the command line also sets this, but defining
+ * it here makes the dependency explicit and avoids the redefinition warning. */
+#undef  CMD_TOOL_BUILD
 #define CMD_TOOL_BUILD
 
 #include "smc.h"
 
-/* smc.c is #included directly so we compile as a single translation unit.
- * This avoids needing a separate smc.o and keeps the Makefile simple. */
+/* Include smc.c as a single translation unit - no separate compile step needed */
 #include "smc.c"
 
 /* -------------------------------------------------------------------------
  * temps command
  *
- * Dumps every temperature key the SMC exposes.
- * Output format (one key per line):
+ * Output format (one line per key):
  *   KEYNAME VALUE_CELSIUS
- *
  * Example:
- *   TC0P 52.50
- *   TGDD 68.25
- *   TG0D 67.75
- *
- * Python parses this to find the GPU and CPU keys.
+ *   TC0P 52.25
+ *   TGDD 68.00
  * ------------------------------------------------------------------------- */
 static void cmd_temps(void)
 {
@@ -71,7 +60,6 @@ static void cmd_temps(void)
 
         _ultostr(key, outputStructure.key);
 
-        /* Temperature keys all start with 'T' */
         if (key[0] != 'T')
             continue;
 
@@ -79,17 +67,11 @@ static void cmd_temps(void)
         if (result != kIOReturnSuccess)
             continue;
 
-        /* SP78 is the standard temperature encoding used by Apple SMC:
-         * signed fixed-point, 7 integer bits + 8 fractional bits.
-         * Value = raw_int16 / 256.0 */
         if (strcmp(val.dataType, DATATYPE_SP78) == 0 && val.dataSize == 2)
         {
             float celsius = ((SInt16)ntohs(*(UInt16*)val.bytes)) / 256.0f;
-
-            /* Skip keys that read as 0 or negative - likely unpopulated sensors */
             if (celsius <= 0.0f)
                 continue;
-
             printf("%s %.2f\n", val.key, celsius);
         }
     }
@@ -98,9 +80,7 @@ static void cmd_temps(void)
 /* -------------------------------------------------------------------------
  * fans command
  *
- * Dumps all fan info the SMC exposes.
- * Output format (one field per line, prefixed with fan index):
- *
+ * Output format:
  *   FAN 0
  *   ID Left Fan
  *   ACTUAL 2001
@@ -109,10 +89,6 @@ static void cmd_temps(void)
  *   SAFE 1299
  *   TARGET 2001
  *   MODE auto
- *   FAN 1
- *   ...
- *
- * Python parses this line by line.
  * ------------------------------------------------------------------------- */
 static void cmd_fans(void)
 {
@@ -134,7 +110,6 @@ static void cmd_fans(void)
     {
         printf("FAN %d\n", i);
 
-        /* Fan ID / label */
         sprintf(key, "F%cID", fannum[i]);
         result = SMCReadKey(key, &val);
         if (result == kIOReturnSuccess && val.dataSize > 4)
@@ -142,34 +117,26 @@ static void cmd_fans(void)
         else
             printf("ID unknown\n");
 
-        /* Actual (current) speed */
         sprintf(key, "F%cAc", fannum[i]);
         result = SMCReadKey(key, &val);
         printf("ACTUAL %.0f\n", (result == kIOReturnSuccess) ? getFloatFromVal(val) : -1.0f);
 
-        /* Minimum speed */
         sprintf(key, "F%cMn", fannum[i]);
         result = SMCReadKey(key, &val);
         printf("MIN %.0f\n", (result == kIOReturnSuccess) ? getFloatFromVal(val) : -1.0f);
 
-        /* Maximum speed */
         sprintf(key, "F%cMx", fannum[i]);
         result = SMCReadKey(key, &val);
         printf("MAX %.0f\n", (result == kIOReturnSuccess) ? getFloatFromVal(val) : -1.0f);
 
-        /* Safe speed */
         sprintf(key, "F%cSf", fannum[i]);
         result = SMCReadKey(key, &val);
         printf("SAFE %.0f\n", (result == kIOReturnSuccess) ? getFloatFromVal(val) : -1.0f);
 
-        /* Target speed */
         sprintf(key, "F%cTg", fannum[i]);
         result = SMCReadKey(key, &val);
         printf("TARGET %.0f\n", (result == kIOReturnSuccess) ? getFloatFromVal(val) : -1.0f);
 
-        /* Mode: auto vs forced
-         * FS!  is a bitmask: bit N = 1 means fan N is in forced mode.
-         * Fall back to per-fan FNMd key if FS! is unavailable. */
         SMCReadKey("FS! ", &val);
         if (val.dataSize > 0)
         {
