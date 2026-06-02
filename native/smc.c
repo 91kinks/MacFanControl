@@ -792,6 +792,7 @@ int main(int argc, char *argv[])
     smc_close();
     return 0;
 }
+#endif //#ifndef MACFAN_EMBEDDED
 #endif //#ifdef CMD_TOOL
 
 
