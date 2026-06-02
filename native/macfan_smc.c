@@ -7,22 +7,17 @@
  *   ./macfan_smc fans     - dump all fan info (RPM, min, max, mode)
  */
 
-#include <unistd.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <IOKit/IOKitLib.h>
-#include <libkern/OSAtomic.h>
-
-/* Must come before including smc.c so the CMD_TOOL_BUILD sections compile in.
- * The -DCMD_TOOL_BUILD flag on the command line also sets this, but defining
- * it here makes the dependency explicit and avoids the redefinition warning. */
+/* Define before any includes so smc.h and smc.c both see it */
 #undef  CMD_TOOL_BUILD
 #define CMD_TOOL_BUILD
 
-#include "smc.h"
+#include <unistd.h>
 
-/* Include smc.c as a single translation unit - no separate compile step needed */
+
+/* smc.c includes smc.h itself, and smc.h includes IOKit/IOKitLib.h.
+ * Including smc.c here compiles everything as one translation unit.
+ * Do NOT include smc.h separately - the header guard would cause
+ * the types to be defined after our functions see them. */
 #include "smc.c"
 
 /* -------------------------------------------------------------------------
