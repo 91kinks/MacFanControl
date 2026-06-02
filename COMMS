@@ -99,3 +99,73 @@ smcFanControl.app (App)
 ==> Downloading https://formulae.brew.sh/api/ca
 ==> Analytics
 install: 322 (30 days), 1,028 (90 days), 3,359 (365 days)
+
+===============================================================
+koryinks@KMBP native % make check
+Checking build environment...
+  clang: OK
+  IOKit: OK
+  smc.c: OK
+  smc.h: OK
+koryinks@KMBP native % make
+clang -DCMD_TOOL_BUILD -Wall -O2 -framework IOKit -framework CoreFoundation -o macfan_smc macfan_smc.c
+macfan_smc.c:26:9: warning: 'CMD_TOOL_BUILD' macro redefined [-Wmacro-redefined]
+#define CMD_TOOL_BUILD
+        ^
+<command line>:1:9: note: previous definition is here
+#define CMD_TOOL_BUILD 1
+        ^
+macfan_smc.c:50:5: error: use of undeclared identifier 'kern_return_t'
+    kern_return_t result;
+    ^
+macfan_smc.c:51:5: error: use of undeclared identifier 'SMCKeyData_t'
+    SMCKeyData_t  inputStructure;
+    ^
+macfan_smc.c:52:5: error: use of undeclared identifier 'SMCKeyData_t'
+    SMCKeyData_t  outputStructure;
+    ^
+macfan_smc.c:54:5: error: use of undeclared identifier 'UInt32Char_t'
+    UInt32Char_t  key;
+    ^
+macfan_smc.c:55:5: error: use of undeclared identifier 'SMCVal_t'
+    SMCVal_t      val;
+    ^
+macfan_smc.c:57:17: error: implicit declaration of function 'SMCReadIndexCount' is invalid in C99 [-Werror,-Wimplicit-function-declaration]
+    totalKeys = SMCReadIndexCount();
+                ^
+macfan_smc.c:61:44: error: use of undeclared identifier 'SMCKeyData_t'
+        memset(&inputStructure,  0, sizeof(SMCKeyData_t));
+                                           ^
+macfan_smc.c:61:17: error: use of undeclared identifier 'inputStructure'
+        memset(&inputStructure,  0, sizeof(SMCKeyData_t));
+                ^
+macfan_smc.c:61:17: error: use of undeclared identifier 'inputStructure'
+macfan_smc.c:62:44: error: use of undeclared identifier 'SMCKeyData_t'
+        memset(&outputStructure, 0, sizeof(SMCKeyData_t));
+                                           ^
+macfan_smc.c:62:17: error: use of undeclared identifier 'outputStructure'
+        memset(&outputStructure, 0, sizeof(SMCKeyData_t));
+                ^
+macfan_smc.c:62:17: error: use of undeclared identifier 'outputStructure'
+macfan_smc.c:63:44: error: use of undeclared identifier 'SMCVal_t'
+        memset(&val,             0, sizeof(SMCVal_t));
+                                           ^
+macfan_smc.c:63:17: error: use of undeclared identifier 'val'
+        memset(&val,             0, sizeof(SMCVal_t));
+                ^
+macfan_smc.c:63:17: error: use of undeclared identifier 'val'
+macfan_smc.c:65:9: error: use of undeclared identifier 'inputStructure'
+        inputStructure.data8  = SMC_CMD_READ_INDEX;
+        ^
+macfan_smc.c:65:33: error: use of undeclared identifier 'SMC_CMD_READ_INDEX'
+        inputStructure.data8  = SMC_CMD_READ_INDEX;
+                                ^
+macfan_smc.c:66:9: error: use of undeclared identifier 'inputStructure'
+        inputStructure.data32 = i;
+        ^
+macfan_smc.c:68:9: error: use of undeclared identifier 'result'
+        result = SMCCall(KERNEL_INDEX_SMC, &inputStructure, &outputStructure);
+        ^
+fatal error: too many errors emitted, stopping now [-ferror-limit=]
+1 warning and 20 errors generated.
+make: *** [macfan_smc] Error 1
