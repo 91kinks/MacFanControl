@@ -292,3 +292,35 @@ macfan_smc.c:52:26: error: use of undeclared identifier 'KERNEL_INDEX_SMC'
 fatal error: too many errors emitted, stopping now [-ferror-limit=]
 20 errors generated.
 make: *** [macfan_smc] Error 1
+===========================================================
+koryinks@KMBP native % head -30 macfan_smc.c
+/*
+ * macfan_smc.c
+ * MacFanControl - Lightweight SMC helper for MacBookPro11,5
+ *
+ * Usage:
+ *   ./macfan_smc temps    - dump all temperature keys
+ *   ./macfan_smc fans     - dump all fan info (RPM, min, max, mode)
+ */
+
+/* Define before any includes so smc.h and smc.c both see it */
+#undef  CMD_TOOL_BUILD
+#define CMD_TOOL_BUILD
+
+#include <unistd.h>
+
+
+/* smc.c includes smc.h itself, and smc.h includes IOKit/IOKitLib.h.
+ * Including smc.c here compiles everything as one translation unit.
+ * Do NOT include smc.h separately - the header guard would cause
+ * the types to be defined after our functions see them. */
+#include "smc.c"
+
+/* -------------------------------------------------------------------------
+ * temps command
+ *
+ * Output format (one line per key):
+ *   KEYNAME VALUE_CELSIUS
+ * Example:
+ *   TC0P 52.25
+ *   TGDD 68.00
