@@ -473,3 +473,71 @@ In file included from macfan_smc.c:23:
  ^
 6 warnings and 1 error generated.
 make: *** [macfan_smc] Error 1
+========================================================
+==================================================
+  TEMPERATURES
+==================================================
+  TB0T     32.30 C  (battery)
+  TB1T     29.30 C
+  TB2T     33.00 C
+  TBXT     32.30 C
+  TC0E     63.94 C
+  TC0F     66.28 C
+  TC0P     53.38 C  (CPU proximity)
+  TC1C     73.00 C  (CPU core 1)
+  TC1F     70.53 C
+  TC1f     70.53 C
+  TC2C     70.00 C  (CPU core 2)
+  TC3C     63.00 C  (CPU core 3)
+  TC4C     60.00 C
+  TCGC     61.00 C  (CPU PECI GPU)
+  TCSA     65.00 C  (CPU SA)
+  TCTD      0.31 C
+  TCXC     70.53 C  (CPU Xeon core)
+  TCXM     71.06 C
+  TCXP     61.81 C
+  TG0D     62.25 C  (GPU die alt)
+  TG0F     62.96 C
+  TG0P     57.12 C  (GPU proximity)
+  TH0V     45.71 C
+  TH0a     35.00 C
+  TH0b     35.00 C
+  TH0c     35.00 C
+  TM0P     48.75 C  (memory proximity)
+  TM0S     47.91 C
+  TP0P     48.88 C
+  TPCD     52.00 C
+  TW0P     46.25 C  (wireless)
+  Ta0P     41.75 C
+  TaSP     40.95 C
+  Th1H     47.25 C  (heatsink B)
+  Th2H     54.88 C
+  Ts0P     29.94 C
+  Ts0S     42.88 C
+  Ts1P     29.94 C
+  Ts1S     44.08 C
+
+  >> GPU temperature candidates:
+     TG0D  62.25 C  (GPU die alt)
+     TG0P  57.12 C  (GPU proximity)
+
+==================================================
+  FANS
+==================================================
+  Fan 0  (Left side)
+    Actual  :  3024 RPM
+    Min     :  2160 RPM
+    Max     :  6156 RPM
+    Safe    :    -1 RPM
+    Target  :  3020 RPM
+    Mode    : auto
+
+  Fan 1  (Right side)
+    Actual  :  2803 RPM
+    Min     :  2000 RPM
+    Max     :  5700 RPM
+    Safe    :    -1 RPM
+    Target  :  2797 RPM
+    Mode    : auto
+
+Probe complete.
