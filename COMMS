@@ -227,3 +227,68 @@ macfan_smc.c:57:26: error: use of undeclared identifier 'KERNEL_INDEX_SMC'
 fatal error: too many errors emitted, stopping now [-ferror-limit=]
 20 errors generated.
 make: *** [macfan_smc] Error 1
+
+============================================================
+koryinks@KMBP native % make
+clang -DCMD_TOOL_BUILD -Wall -O2 -framework IOKit -framework CoreFoundation -o macfan_smc macfan_smc.c
+macfan_smc.c:34:5: error: use of undeclared identifier 'kern_return_t'
+    kern_return_t result;
+    ^
+macfan_smc.c:35:5: error: use of undeclared identifier 'SMCKeyData_t'
+    SMCKeyData_t  inputStructure;
+    ^
+macfan_smc.c:36:5: error: use of undeclared identifier 'SMCKeyData_t'
+    SMCKeyData_t  outputStructure;
+    ^
+macfan_smc.c:38:5: error: use of undeclared identifier 'UInt32Char_t'
+    UInt32Char_t  key;
+    ^
+macfan_smc.c:39:5: error: use of undeclared identifier 'SMCVal_t'
+    SMCVal_t      val;
+    ^
+macfan_smc.c:41:17: error: implicit declaration of function 'SMCReadIndexCount' is invalid in C99 [-Werror,-Wimplicit-function-declaration]
+    totalKeys = SMCReadIndexCount();
+                ^
+macfan_smc.c:45:9: error: implicitly declaring library function 'memset' with type 'void *(void *, int, unsigned long)' [-Werror,-Wimplicit-function-declaration]
+        memset(&inputStructure,  0, sizeof(SMCKeyData_t));
+        ^
+macfan_smc.c:45:9: note: include the header <string.h> or explicitly provide a declaration for 'memset'
+macfan_smc.c:45:44: error: use of undeclared identifier 'SMCKeyData_t'
+        memset(&inputStructure,  0, sizeof(SMCKeyData_t));
+                                           ^
+macfan_smc.c:45:17: error: use of undeclared identifier 'inputStructure'
+        memset(&inputStructure,  0, sizeof(SMCKeyData_t));
+                ^
+macfan_smc.c:46:44: error: use of undeclared identifier 'SMCKeyData_t'
+        memset(&outputStructure, 0, sizeof(SMCKeyData_t));
+                                           ^
+macfan_smc.c:46:17: error: use of undeclared identifier 'outputStructure'
+        memset(&outputStructure, 0, sizeof(SMCKeyData_t));
+                ^
+macfan_smc.c:47:44: error: use of undeclared identifier 'SMCVal_t'
+        memset(&val,             0, sizeof(SMCVal_t));
+                                           ^
+macfan_smc.c:47:17: error: use of undeclared identifier 'val'
+        memset(&val,             0, sizeof(SMCVal_t));
+                ^
+macfan_smc.c:49:9: error: use of undeclared identifier 'inputStructure'
+        inputStructure.data8  = SMC_CMD_READ_INDEX;
+        ^
+macfan_smc.c:49:33: error: use of undeclared identifier 'SMC_CMD_READ_INDEX'
+        inputStructure.data8  = SMC_CMD_READ_INDEX;
+                                ^
+macfan_smc.c:50:9: error: use of undeclared identifier 'inputStructure'
+        inputStructure.data32 = i;
+        ^
+macfan_smc.c:52:9: error: use of undeclared identifier 'result'
+        result = SMCCall(KERNEL_INDEX_SMC, &inputStructure, &outputStructure);
+        ^
+macfan_smc.c:52:18: error: implicit declaration of function 'SMCCall' is invalid in C99 [-Werror,-Wimplicit-function-declaration]
+        result = SMCCall(KERNEL_INDEX_SMC, &inputStructure, &outputStructure);
+                 ^
+macfan_smc.c:52:26: error: use of undeclared identifier 'KERNEL_INDEX_SMC'
+        result = SMCCall(KERNEL_INDEX_SMC, &inputStructure, &outputStructure);
+                         ^
+fatal error: too many errors emitted, stopping now [-ferror-limit=]
+20 errors generated.
+make: *** [macfan_smc] Error 1
