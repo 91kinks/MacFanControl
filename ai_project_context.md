@@ -1,4 +1,4 @@
-# MacFanLite Project Status Report
+# MacFanControl Project Status Report
 
 ## Project Goal
 
@@ -58,7 +58,7 @@ Version 2.30f2
 
 Current planned architecture:
 
-MacFanLite/
+MacFanControl/
 
 ├── native/
 │   └── macfan_smc
