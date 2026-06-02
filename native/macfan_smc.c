@@ -10,6 +10,8 @@
 /* Define before any includes so smc.h and smc.c both see it */
 #undef  CMD_TOOL_BUILD
 #define CMD_TOOL_BUILD
+#define MACFAN_EMBEDDED
+
 
 #include <unistd.h>
 

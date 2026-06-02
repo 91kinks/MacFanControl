@@ -674,6 +674,8 @@ kern_return_t SMCWriteSimple(UInt32Char_t key, char *wvalue, io_connect_t conn)
     return result;
 }
 
+#ifndef MACFAN_EMBEDDED
+
 int main(int argc, char *argv[])
 {
     int c;
