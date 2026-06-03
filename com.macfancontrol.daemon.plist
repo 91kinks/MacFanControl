@@ -11,7 +11,7 @@
     <!-- Command to run -->
     <key>ProgramArguments</key>
     <array>
-        <string>/usr/local/bin/python3</string>
+        <string>/Users/koryinks/MacFanControl/venv/bin/python3</string>
         <string>/Users/koryinks/MacFanControl/daemon.py</string>
         <string>--config</string>
         <string>/Users/koryinks/MacFanControl/config.json</string>
