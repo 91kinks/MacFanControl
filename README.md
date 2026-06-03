@@ -242,6 +242,17 @@ Each fan scales against its own hardware min/max independently.
 
 ---
 
+## Menu-Bar
+
+**Installation**
+
+```
+python3 -m venv venv
+source venv/bin/activate
+pip install rumps
+```
+---
+
 ## SMC Keys (MacBookPro11,5)
 
 | Key   | Description              | Notes                        |
