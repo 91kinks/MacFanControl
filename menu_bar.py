@@ -161,7 +161,8 @@ class MacFanControlApp(rumps.App):
             self.fan0_item,
             self.fan1_item,
             rumps.separator,
-            self.daemon_item
+            self.daemon_item,
+            rumps.separator
         ]
 
         # Start the refresh timer
