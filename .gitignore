@@ -33,3 +33,10 @@ desktop.ini
 
 # Config
 config.ini
+
+# Logs
+/Logs
+
+# native_files
+native/macfan_smc
+native/*.o
