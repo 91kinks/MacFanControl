@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+
+    <!-- This is a launch agent plist for the Menu Bar app -->
+    <!-- launchctl load/unload ~/Library/LaunchAgents/com.macfancontrol.menubar.plist -->
+    <key>Label</key>
+    <string>com.macfancontrol.menubar</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/koryinks/MacFanControl/venv/bin/python3</string>
+        <string>/Users/koryinks/MacFanControl/menubar.py</string>
+    </array>
+
+    <!-- Start automatically on login -->
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- Restart if it crashes -->
+    <key>KeepAlive</key>
+    <true/>
+
+    <!-- Log output -->
+    <key>StandardOutPath</key>
+    <string>/Users/koryinks/MacFanControl/logs/menubar.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/koryinks/MacFanControl/logs/menubar.err</string>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/koryinks/MacFanControl</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin</string>
+    </dict>
+
+</dict>
+</plist>
