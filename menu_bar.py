@@ -161,9 +161,7 @@ class MacFanControlApp(rumps.App):
             self.fan0_item,
             self.fan1_item,
             rumps.separator,
-            self.daemon_item,
-            rumps.separator,
-            rumps.MenuItem("Quit", callback=self.quit_app)
+            self.daemon_item
         ]
 
         # Start the refresh timer
@@ -212,10 +210,6 @@ class MacFanControlApp(rumps.App):
             self.title = f"GPU {gpu:.0f}°C  ↑{fan_rpm}"
         else:
             self.title = "GPU --°C"
-
-    def quit_app(self, _):
-        """Clean exit — just quit the menu bar app. Daemon keeps running."""
-        rumps.quit_application()
 
 
 # ---------------------------------------------------------------------------
