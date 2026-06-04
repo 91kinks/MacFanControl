@@ -96,6 +96,9 @@ class FanDaemon:
         self.last_rpm0    = -1
         self.last_rpm1    = -1
 
+        # Log threshold
+        self.log_threshold = config.get("log_threshold_temp", 80)  # Only log when GPU >= threshold
+
     def restore_auto(self):
         """Hand control back to Apple. Always called on exit."""
         if self.dry_run:
@@ -164,7 +167,8 @@ class FanDaemon:
 
         # Status line
         cpu_str = f"  CPU {cpu:.1f}C" if cpu is not None else ""
-        print(f"GPU {gpu:.1f}C{cpu_str}  ->  Fan0 {rpm0} RPM  Fan1 {rpm1} RPM")
+        if gpu >= self.emergency:
+            print(f"GPU {gpu:.1f}C{cpu_str} >= {self.emergency}C  ->  EMERGENCY MAX FAN")
 
         return True
 

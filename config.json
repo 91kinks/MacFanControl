@@ -29,5 +29,7 @@
     "safety": {
         "emergency_temp": 95,
         "sensor_fail_action": "auto"
-    }
+    },
+
+    "log_threshold_temp": 80
 }
