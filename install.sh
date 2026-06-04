@@ -63,6 +63,14 @@ if [ "$1" == "--uninstall" ]; then
     # Remove sudoers rule
     sudo rm -f "$SUDOERS_FILE" && ok "Removed sudoers rule"
 
+    # Remove alias from .zshrc
+    if grep -q "MacFanControl alias" "$HOME/.zshrc" 2>/dev/null; then
+        grep -v "MacFanControl alias" "$HOME/.zshrc" | grep -v "alias macfan=" > /tmp/.zshrc_tmp
+
+        mv /tmp/.zshrc_tmp "$HOME/.zshrc"
+        ok "Removed shell alias from ~/.zshrc"
+    fi
+
     # Restore auto fan control just in case
     if [ -f "$BINARY" ]; then
         sudo "$BINARY" set-auto 2>/dev/null && ok "Fans restored to auto control"
@@ -244,6 +252,31 @@ launchctl unload "$MENUBAR_PLIST" 2>/dev/null || true
 
 launchctl load "$DAEMON_PLIST"  && ok "Daemon started" || err "Failed to start daemon"
 launchctl load "$MENUBAR_PLIST" && ok "Menu bar started" || err "Failed to start menu bar"
+
+# ---------------------------------------------------------------------------
+# Make macfan.sh executable
+# ---------------------------------------------------------------------------
+
+chmod +x "$INSTALL_DIR/macfan.sh"
+ok "macfan.sh is executable"
+
+# ---------------------------------------------------------------------------
+# Add shell alias
+# ---------------------------------------------------------------------------
+
+ZSHRC="$HOME/.zshrc"
+ALIAS_LINE="alias macfan='$INSTALL_DIR/macfan.sh'"
+ALIAS_MARKER="# MacFanControl alias"
+
+if grep -q "MacFanControl alias" "$ZSHRC" 2>/dev/null; then
+    warn "Shell alias already exists in $ZSHRC (skipping)"
+else
+    echo "" >> "$ZSHRC"
+    echo "$ALIAS_MARKER" >> "$ZSHRC"
+    echo "$ALIAS_LINE"   >> "$ZSHRC"
+    ok "Shell alias added to $ZSHRC"
+    echo "    Run: source ~/.zshrc  (or open a new terminal)"
+fi
 
 # ---------------------------------------------------------------------------
 # Done

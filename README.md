@@ -56,6 +56,7 @@ MacFanControl/
 ├── daemon.py               # Main daemon loop
 ├── menubar.py              # Menu bar status display (read-only)
 ├── config.json             # User configuration
+├── macfan.sh               # Process management shortcuts
 ├── install.sh              # Automated install script
 │
 ├── com.macfancontrol.daemon.plist    # launchd template (daemon)
@@ -188,6 +189,32 @@ After install, both the daemon and menu bar app start automatically on every log
 ```
 
 This unloads both launch agents, removes the plists, removes the sudoers rule, and restores Apple auto fan control.
+---
+
+## Managing Processes
+
+After install, use the `macfan` alias (added automatically by `install.sh`) to control both processes:
+
+```bash
+macfan status               # show whether daemon and menu bar are running
+macfan start                # start both
+macfan stop                 # stop both
+macfan restart              # restart both
+macfan start menubar        # start menu bar only
+macfan stop menubar         # stop menu bar only
+macfan restart daemon       # restart daemon only
+```
+
+If the alias isn't active yet in your current terminal:
+```bash
+source ~/.zshrc
+```
+
+To start/stop manually without the alias:
+```bash
+launchctl load   ~/Library/LaunchAgents/com.macfancontrol.menubar.plist
+launchctl unload ~/Library/LaunchAgents/com.macfancontrol.menubar.plist
+```
 
 ---
 
