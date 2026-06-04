@@ -38,7 +38,6 @@ import rumps
 # ---------------------------------------------------------------------------
 
 CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
-ICON_PATH   = os.path.join(os.path.dirname(os.path.abspath(__file__)), "icons", "fan_template.png")
 REFRESH_SECONDS = 3
 
 
@@ -140,8 +139,7 @@ class MacFanControlApp(rumps.App):
 
     def __init__(self, config: dict, binary: str):
         # Start with a placeholder title while first read happens
-        icon = ICON_PATH if os.path.isfile(ICON_PATH) else None
-        super().__init__("MacFanControl", title="🌡 --°C", icon=icon, template=True)
+        super().__init__("MacFanControl", title="🌡 --°C")
 
         self.config = config
         self.binary = binary
