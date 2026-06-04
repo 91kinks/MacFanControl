@@ -35,8 +35,13 @@ desktop.ini
 config.ini
 
 # Logs
-/Logs
+/logs
 
 # native_files
 native/macfan_smc
 native/*.o
+
+# Generated plists (created by install.sh, contain local paths)
+~/Library/LaunchAgents/com.mcfancontrol.daemon.plist
+~/Library/LaunchAgents/com.mcfancontrol.menubar.daemon.plist
+
