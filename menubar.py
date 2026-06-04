@@ -32,7 +32,7 @@ import subprocess
 import sys
 
 import rumps
-
+import AppKit
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
@@ -138,8 +138,11 @@ def daemon_running() -> bool:
 class MacFanControlApp(rumps.App):
 
     def __init__(self, config: dict, binary: str):
-        # Start with a placeholder title while first read happens
         super().__init__("MacFanControl", title="🌡 --°C")
+
+        AppKit.NSApp.setActivationPolicy_(
+            AppKit.NSApplicationActivationPolicyAccessory
+        )
 
         self.config = config
         self.binary = binary
