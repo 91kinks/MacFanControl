@@ -2,7 +2,7 @@
 
 A lightweight fan control daemon for 2015 Intel MacBook Pro (MacBookPro11,5).
 
-Built as a minimal replacement for Macs Fan Control, which caused severe system slowdowns on this hardware. This project uses less than 1% of the CPU and a few MB of RAM.
+Built as a minimal replacement for Macs Fan Control, which caused severe system slowdowns on this hardware. This project uses less than 1% of CPU and a few MB of RAM.
 
 ---
 
@@ -34,7 +34,9 @@ May work on other 2013–2015 Intel MacBook Pros with similar SMC key layouts. T
 - Emergency override at configurable temperature ceiling
 - Automatic restore to Apple control on crash or exit
 - Runs as a login daemon via launchd
+- Menu bar display showing GPU temp and fan RPM
 - Dry-run mode for testing without touching the fans
+- Single install script handles all setup automatically
 - Extremely low resource usage
 
 ---
@@ -52,9 +54,12 @@ MacFanControl/
 ├── sensors.py              # Subprocess wrapper around macfan_smc
 ├── fan_curve.py            # Fan curve calculation (pure, no I/O)
 ├── daemon.py               # Main daemon loop
+├── menubar.py              # Menu bar status display (read-only)
 ├── config.json             # User configuration
+├── install.sh              # Automated install script
 │
-├── com.macfancontrol.daemon.plist   # launchd login agent
+├── com.macfancontrol.daemon.plist    # launchd template (daemon)
+├── com.macfancontrol.menubar.plist   # launchd template (menu bar)
 │
 └── tests/
     └── probe.py            # Read all sensors and fan info (no writes)
@@ -66,7 +71,7 @@ MacFanControl/
 
 - macOS (tested on Monterey 12.7.6)
 - Xcode Command Line Tools
-- Python 3 (`/usr/local/bin/python3`)
+- Python 3
 
 Install Xcode Command Line Tools if needed:
 ```bash
@@ -99,9 +104,9 @@ cd ..
 python3 tests/probe.py
 ```
 
-This will dump all temperature keys and fan info from your SMC with no writes. Look for your GPU key in the output — on the MacBookPro11,5 it is `TG0D`.
+This dumps all temperature keys and fan info from your SMC with no writes. Look for your GPU key in the output — on the MacBookPro11,5 it is `TG0D`. If your machine reports a different key, update `config.json` before proceeding.
 
-### 4. Edit config.json
+### 4. Review and edit config.json
 
 ```json
 {
@@ -133,9 +138,17 @@ This will dump all temperature keys and fan info from your SMC with no writes. L
 }
 ```
 
-Adjust `floor_rpm`, `start_temp`, and `max_temp` to your preference. Use the probe output to confirm your GPU key before running the daemon.
+Update `gpu_temp_key` if your probe output showed a different key. Adjust `floor_rpm`, `start_temp`, and `max_temp` to taste.
 
-### 5. Test with dry-run
+### 5. Set up the Python environment
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install rumps
+```
+
+### 6. Test with dry-run
 
 ```bash
 sudo python3 daemon.py --dry-run
@@ -143,59 +156,44 @@ sudo python3 daemon.py --dry-run
 
 This runs the full loop — reading sensors and computing targets — without writing anything to the SMC. Verify the output looks sensible, then Ctrl+C to exit.
 
-### 6. Run the daemon
+### 7. Run the daemon
 
-```bash
+```
 sudo python3 daemon.py
 ```
-
 Ctrl+C will cleanly restore auto fan control before exiting.
+
+### 8. Run the install script
+
+```bash
+chmod +x install.sh
+./install.sh
+```
+
+The install script will:
+- Verify all requirements are met
+- Create the logs directory
+- Write both launchd plists with correct paths for your system
+- Add a passwordless sudo rule for the macfan_smc binary only
+- Load both launch agents (daemon + menu bar)
+
+After install, both the daemon and menu bar app start automatically on every login.
 
 ---
 
-## Auto-start on Login (launchd)
-
-### 1. Create the logs directory
+## Uninstall
 
 ```bash
-mkdir -p /Users/YOUR_USERNAME/MacFanControl/logs
+./install.sh --uninstall
 ```
 
-### 2. Allow passwordless sudo for the binary
-
-```bash
-echo "YOUR_USERNAME ALL=(ALL) NOPASSWD: /Users/YOUR_USERNAME/MacFanControl/native/macfan_smc" | sudo tee /etc/sudoers.d/macfancontrol
-```
-
-### 3. Edit the plist
-
-Open `com.macfancontrol.daemon.plist` and replace every occurrence of `/Users/koryinks/` with your own home directory path.
-
-### 4. Install the plist
-
-```bash
-cp com.macfancontrol.daemon.plist ~/Library/LaunchAgents/
-launchctl load ~/Library/LaunchAgents/com.macfancontrol.daemon.plist
-```
-
-### 5. Verify it is running
-
-```bash
-launchctl list | grep macfancontrol
-cat ~/MacFanControl/logs/daemon.log
-```
-
-### Stop / unload
-
-```bash
-launchctl unload ~/Library/LaunchAgents/com.macfancontrol.daemon.plist
-```
+This unloads both launch agents, removes the plists, removes the sudoers rule, and restores Apple auto fan control.
 
 ---
 
 ## Manual Fan Control
 
-The `macfan_smc` binary can be used directly:
+The `macfan_smc` binary can be used directly without the daemon:
 
 ```bash
 # Read all temperature sensors
@@ -215,8 +213,6 @@ sudo ./native/macfan_smc set-auto
 
 ## How the Fan Curve Works
 
-The curve is a linear ramp between two temperature points:
-
 ```
 RPM
  ^
@@ -233,35 +229,35 @@ floor───────────────────────/─�
           threshold  threshold    override
 ```
 
-- Below 66°C — fans hold at floor RPM (quiet)
-- 66°C to 95°C — linear ramp to max RPM
-- At 95°C — immediate override to hardware maximum
-- Hysteresis — fans only start ramping down once temp drops below 62°C, preventing rapid oscillation
+- **Below 66°C** — fans hold at floor RPM (quiet)
+- **66°C to 95°C** — linear ramp to max RPM
+- **At 95°C** — immediate override to hardware maximum
+- **Hysteresis** — fans only start ramping down once temp drops below 62°C, preventing rapid oscillation
 
 Each fan scales against its own hardware min/max independently.
 
 ---
 
-## Menu-Bar
-
-**Installation**
+## Logs
 
 ```
-python3 -m venv venv
-source venv/bin/activate
-pip install rumps
+logs/daemon.log     # daemon stdout (temps, RPM decisions)
+logs/daemon.err     # daemon stderr (errors)
+logs/menubar.log    # menu bar stdout
+logs/menubar.err    # menu bar stderr
 ```
+
 ---
 
 ## SMC Keys (MacBookPro11,5)
 
-| Key   | Description              | Notes                        |
-|-------|--------------------------|------------------------------|
-| TG0D  | GPU die temperature      | Primary control sensor       |
-| TC1C  | CPU core 1 temperature   | Secondary / informational    |
-| F0Tg  | Fan 0 target RPM         | fpe2 encoded, big-endian     |
-| F1Tg  | Fan 1 target RPM         | fpe2 encoded, big-endian     |
-| FS!   | Forced mode bitmask      | bit 0 = fan 0, bit 1 = fan 1 |
+| Key  | Description           | Notes                         |
+|------|-----------------------|-------------------------------|
+| TG0D | GPU die temperature   | Primary control sensor        |
+| TC1C | CPU core 1 temperature| Secondary / informational     |
+| F0Tg | Fan 0 target RPM      | fpe2 encoded, big-endian      |
+| F1Tg | Fan 1 target RPM      | fpe2 encoded, big-endian      |
+| FS!  | Forced mode bitmask   | bit 0 = fan 0, bit 1 = fan 1  |
 
 ---
 
@@ -273,6 +269,6 @@ SMC communication is based on [smcFanControl](https://github.com/hholtmann/smcFa
 
 ## License
 
-GNU General Public License v2.0 — see [GPL v2](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html).
+GNU General Public License v2.0
 
-This project uses code from smcFanControl (GPL v2), so the same license applies here.
+This project uses code from smcFanControl (GPL v2), so the same license applies here. See [GPL v2](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html).
