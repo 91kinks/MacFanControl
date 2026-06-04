@@ -23,7 +23,10 @@
     <true/>
 
     <key>KeepAlive</key>
-    <true/>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
 
     <key>StandardOutPath</key>
     <string>/YOUR/INSTALL/PATH/logs/daemon.log</string>

@@ -1,4 +1,3 @@
-#!/Users/koryinks/MacFanControl/venv/bin/python3
 """
 menubar.py
 MacFanControl - Menu bar status display.
@@ -23,7 +22,7 @@ Menu items show:
 
 Usage:
     Run from the project root (daemon should already be running):
-    /Users/koryinks/MacFanControl/venv/bin/python3 menubar.py
+    /Users/USERNAME/MacFanControl/venv/bin/python3 menubar.py
 """
 
 import json

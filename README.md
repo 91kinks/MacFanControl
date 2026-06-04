@@ -85,7 +85,7 @@ xcode-select --install
 ### 1. Clone the repo
 
 ```bash
-git clone https://github.com/yourusername/MacFanControl.git
+git clone https://github.com/91kinks/MacFanControl.git
 cd MacFanControl
 ```
 

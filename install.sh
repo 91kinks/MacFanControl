@@ -151,7 +151,10 @@ cat > /tmp/com.macfancontrol.daemon.plist << EOF
     <true/>
 
     <key>KeepAlive</key>
-    <true/>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
 
     <key>StandardOutPath</key>
     <string>$LOG_DIR/daemon.log</string>
@@ -195,7 +198,10 @@ cat > /tmp/com.macfancontrol.menubar.plist << EOF
     <true/>
 
     <key>KeepAlive</key>
-    <true/>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
 
     <key>StandardOutPath</key>
     <string>$LOG_DIR/menubar.log</string>
