@@ -140,9 +140,7 @@ class MacFanControlApp(rumps.App):
     def __init__(self, config: dict, binary: str):
         super().__init__("MacFanControl", title="🌡 --°C")
 
-        AppKit.NSApp.setActivationPolicy_(
-            AppKit.NSApplicationActivationPolicyAccessory
-        )
+        self._dock_hidden = False
 
         self.config = config
         self.binary = binary
@@ -172,8 +170,18 @@ class MacFanControlApp(rumps.App):
         self.timer = rumps.Timer(self.refresh, REFRESH_SECONDS)
         self.timer.start()
 
+        self._hide_timer = rumps.Timer(self._hide_from_dock, 0.1)
+        self._hide_timer.start()
+
         # Do an immediate first read
         self.refresh(None)
+
+    def _hide_from_dock(self, _):
+        """Hide from dock after NSApp is initialized. Fires once on startup."""
+        self._hide_timer.stop()
+        AppKit.NSApp.setActivationPolicy_(
+            AppKit.NSApplicationActivationPolicyAccessory
+        )
 
     def refresh(self, _):
         """Called every REFRESH_SECONDS to update all display values."""
