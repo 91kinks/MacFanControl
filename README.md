@@ -1,6 +1,7 @@
 # MacFanControl
 
-A lightweight fan control daemon for 2015 Intel MacBook Pro (MacBookPro11,5).
+A lightweight fan control daemon for 2015 Intel MacBook Pro (MacBookPro11,5). 
+**Note: Should be able to be tailored to other Macbooks as well**
 
 Built as a minimal replacement for Macs Fan Control, which caused severe system slowdowns on this hardware. This project uses less than 1% of CPU and a few MB of RAM.
 
