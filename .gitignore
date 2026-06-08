@@ -45,3 +45,6 @@ native/*.o
 ~/Library/LaunchAgents/com.mcfancontrol.daemon.plist
 ~/Library/LaunchAgents/com.mcfancontrol.menubar.daemon.plist
 
+# ai_project_context.md
+ai_project_context.md
+
