@@ -163,6 +163,7 @@ This runs the full loop — reading sensors and computing targets — without wr
 ```
 sudo python3 daemon.py
 ```
+Runs the daemon with the config file inputs reading and writing to the SMC.
 Ctrl+C will cleanly restore auto fan control before exiting.
 
 ### 8. Run the install script
@@ -183,6 +184,24 @@ After install, both the daemon and menu bar app start automatically on every log
 
 ---
 
+## Security
+
+MacFanControl requires passwordless sudo access for the `macfan_smc` binary in order to write to the SMC without prompting on every fan update.
+
+The sudoers rule is scoped as narrowly as possible — it grants passwordless sudo for that one specific binary path only, nothing else.
+
+To prevent privilege escalation via binary replacement, `install.sh` automatically locks the binary to root ownership after install:
+
+```
+-rwxr-xr-x  root  wheel  native/macfan_smc
+```
+
+This means even if an attacker gains user-level access to your machine, they cannot replace the binary with a malicious one without already having root — which breaks the escalation chain.
+
+If you ever rebuild the binary (`make`), re-run `./install.sh` to reapply the ownership lock.
+
+---
+
 ## Uninstall
 
 ```bash
@@ -190,6 +209,7 @@ After install, both the daemon and menu bar app start automatically on every log
 ```
 
 This unloads both launch agents, removes the plists, removes the sudoers rule, and restores Apple auto fan control.
+
 ---
 
 ## Managing Processes

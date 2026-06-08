@@ -71,6 +71,12 @@ if [ "$1" == "--uninstall" ]; then
         ok "Removed shell alias from ~/.zshrc"
     fi
 
+    # Restore binary ownership to user
+    if [ -f "$BINARY" ]; then
+        sudo chown "$USERNAME":staff "$BINARY"
+        ok "Binary ownership restored to $USERNAME"
+    fi
+
     # Restore auto fan control just in case
     if [ -f "$BINARY" ]; then
         sudo "$BINARY" set-auto 2>/dev/null && ok "Fans restored to auto control"
@@ -252,6 +258,23 @@ launchctl unload "$MENUBAR_PLIST" 2>/dev/null || true
 
 launchctl load "$DAEMON_PLIST"  && ok "Daemon started" || err "Failed to start daemon"
 launchctl load "$MENUBAR_PLIST" && ok "Menu bar started" || err "Failed to start menu bar"
+# ---------------------------------------------------------------------------
+# Lock binary ownership to root
+# Prevents unprivileged users from replacing the binary
+# with a malicious one that would run as root via sudoers
+# ---------------------------------------------------------------------------
+
+sudo chown root:wheel "$BINARY"
+sudo chmod 755 "$BINARY"
+ok "Binary ownership locked to root:wheel"
+
+# ---------------------------------------------------------------------------
+# Lock script permissions (read/execute only, no writes)
+# ---------------------------------------------------------------------------
+
+chmod 555 "$INSTALL_DIR/install.sh"
+chmod 555 "$INSTALL_DIR/macfan.sh"
+ok "Script permissions set to 555 (read/execute only)"
 
 # ---------------------------------------------------------------------------
 # Make macfan.sh executable
@@ -289,5 +312,6 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo ""
 echo "  Verify:   launchctl list | grep macfancontrol"
 echo "  Logs:     $LOG_DIR/"
+echo "  Control:   macfan status / start / stop / restart"
 echo "  Uninstall: ./install.sh --uninstall"
 echo ""
