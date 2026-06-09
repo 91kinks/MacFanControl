@@ -1,8 +1,12 @@
 # MacFanControl
 
+<p align="center">
+  <img src="app_icon/fan.png" alt="MacFanControl" width="180"/>
+</p>
+
 A lightweight fan control daemon for 2015 Intel MacBook Pro (MacBookPro11,5).
 
-**Note: Should be able to be tailored to other Macbooks as well**
+> Should be adaptable to other Intel MacBook models as well — the probe tool will identify your specific SMC keys.
 
 Built as a minimal replacement for Macs Fan Control, which caused severe system slowdowns on this hardware. This project uses less than 1% of CPU and a few MB of RAM.
 
@@ -114,34 +118,47 @@ This dumps all temperature keys and fan info from your SMC with no writes. Look 
 ```json
 {
     "binary": "native/macfan_smc",
+
     "sensor": {
         "gpu_temp_key": "TG0D",
         "cpu_temp_key": "TC1C"
     },
+
     "poll_interval_seconds": 3,
+
     "fan0": {
         "label": "Left side",
         "floor_rpm": 2600,
         "max_rpm": 6156
     },
+
     "fan1": {
         "label": "Right side",
         "floor_rpm": 2600,
         "max_rpm": 5700
     },
+
     "curve": {
         "start_temp": 66,
         "max_temp": 95,
         "hysteresis": 4
     },
+
     "safety": {
         "emergency_temp": 95,
         "sensor_fail_action": "auto"
-    }
+    },
+
+    "log_threshold_temp": 80
 }
 ```
 
-Update `gpu_temp_key` if your probe output showed a different key. Adjust `floor_rpm`, `start_temp`, and `max_temp` to taste.
+**Config notes:**
+- Update `gpu_temp_key` if your probe output showed a different key
+- `floor_rpm` — the RPM both fans hold at rest. On this hardware fans typically hover around 2500–2600 RPM at idle (~60–65°C), so 2600 was chosen as the floor
+- `start_temp` — 66°C is where the ramp begins. Below this the machine is cool enough that Apple's thermal headroom is comfortable
+- `max_temp` — MacBook GPU temps approach thermal limits around 95°C, so that's where fans hit maximum
+- `log_threshold_temp` — daemon only logs to stdout above this temperature, keeping the log file manageable during normal operation
 
 ### 5. Set up the Python environment
 
@@ -159,13 +176,19 @@ sudo python3 daemon.py --dry-run
 
 This runs the full loop — reading sensors and computing targets — without writing anything to the SMC. Verify the output looks sensible, then Ctrl+C to exit.
 
-### 7. Run the daemon
+### 7. Test fan write and restore
 
-```
+```bash
 sudo python3 daemon.py
 ```
-Runs the daemon with the config file inputs reading and writing to the SMC.
-Ctrl+C will cleanly restore auto fan control before exiting.
+
+In a separate terminal, verify the fans are responding:
+
+```bash
+native/macfan_smc fans
+```
+
+Confirm that `Mode` shows `forced` and the target RPMs align with your config. Ctrl+C to exit — this cleanly restores Apple auto control before shutting down.
 
 ### 8. Run the install script
 
@@ -178,7 +201,9 @@ The install script will:
 - Verify all requirements are met
 - Create the logs directory
 - Write both launchd plists with correct paths for your system
-- Add a passwordless sudo rule for the macfan_smc binary only
+- Add a passwordless sudo rule for the `macfan_smc` binary only
+- Lock the binary to root ownership to prevent privilege escalation
+- Add a `macfan` shell alias for process management
 - Load both launch agents (daemon + menu bar)
 
 After install, both the daemon and menu bar app start automatically on every login.
@@ -209,7 +234,7 @@ If you ever rebuild the binary (`make`), re-run `./install.sh` to reapply the ow
 ./install.sh --uninstall
 ```
 
-This unloads both launch agents, removes the plists, removes the sudoers rule, and restores Apple auto fan control.
+This unloads both launch agents, removes the plists, removes the sudoers rule, restores the binary to user ownership, and returns fans to Apple auto control.
 
 ---
 
@@ -300,13 +325,13 @@ logs/menubar.err    # menu bar stderr
 
 ## SMC Keys (MacBookPro11,5)
 
-| Key  | Description           | Notes                         |
-|------|-----------------------|-------------------------------|
-| TG0D | GPU die temperature   | Primary control sensor        |
-| TC1C | CPU core 1 temperature| Secondary / informational     |
-| F0Tg | Fan 0 target RPM      | fpe2 encoded, big-endian      |
-| F1Tg | Fan 1 target RPM      | fpe2 encoded, big-endian      |
-| FS!  | Forced mode bitmask   | bit 0 = fan 0, bit 1 = fan 1  |
+| Key  | Description            | Notes                         |
+|------|------------------------|-------------------------------|
+| TG0D | GPU die temperature    | Primary control sensor        |
+| TC1C | CPU core 1 temperature | Secondary / informational     |
+| F0Tg | Fan 0 target RPM       | fpe2 encoded, big-endian      |
+| F1Tg | Fan 1 target RPM       | fpe2 encoded, big-endian      |
+| FS!  | Forced mode bitmask    | bit 0 = fan 0, bit 1 = fan 1  |
 
 ---
 
