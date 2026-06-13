@@ -255,7 +255,7 @@ class MacFanControlApp(rumps.App):
         if speed_limit is not None and speed_limit < self.speed_limit_warn:
             self.title = f"⚠ {target_str}  SPD {speed_limit}%"
         else:
-            self.title = f"{target_str}  ↑{fan_rpm}"
+            self.title = f"{target_str}  ↑{fan_rpm} {speed_limit}%"
 
 
 # ---------------------------------------------------------------------------
