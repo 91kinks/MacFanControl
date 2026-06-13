@@ -2,12 +2,12 @@
 daemon.py
 MacFanControl - Main fan control daemon.
 
-Reads GPU temperature every N seconds, computes target RPM for each fan
+Reads target_sensor temperature every N seconds, computes target RPM for each fan
 using the curve in fan_curve.py, and calls the macfan_smc binary to apply.
 
 Safety behaviors:
     - Sensor read failure  -> restore auto control and exit
-    - GPU >= emergency_temp -> override to max RPM immediately
+    - target_sensor >= emergency_temp -> override to max RPM immediately
     - SIGINT / SIGTERM     -> restore auto control and exit cleanly
 
 Usage:
@@ -69,6 +69,7 @@ class FanDaemon:
         # Sensor keys
         self.gpu_key      = config["sensor"]["gpu_temp_key"]
         self.cpu_key      = config["sensor"]["cpu_temp_key"]
+        self.target_key   = config["sensor"]["target_sensor_key"]
 
         # Per-fan config
         self.floor0       = config["fan0"]["floor_rpm"]
@@ -97,7 +98,7 @@ class FanDaemon:
         self.last_rpm1    = -1
 
         # Log threshold
-        self.log_threshold = config.get("log_threshold_temp", 80)  # Only log when GPU >= threshold
+        self.log_threshold = config.get("log_threshold_temp", 80)  # Only log when target_sensor >= threshold
 
     def restore_auto(self):
         """Hand control back to Apple. Always called on exit."""
@@ -135,26 +136,28 @@ class FanDaemon:
         """
         gpu = read_gpu_temp(self.binary, self.gpu_key)
         cpu = read_cpu_temp(self.binary, self.cpu_key)
+        sensor_map = {"gpu": gpu, "cpu": cpu}
+        target_sensor = sensor_map.get(self.target_key.lower())
 
-        if gpu is None:
-            print("ERROR: GPU temperature read failed. Restoring auto control.")
+        if target_sensor is None:
+            print("ERROR: target_sensor temperature read failed. Restoring auto control.")
             self.restore_auto()
             return False
 
-        # Emergency override — GPU too hot, go to max immediately
-        if gpu >= self.emergency:
-            print(f"EMERGENCY: GPU {gpu:.1f}C >= {self.emergency}C — max fan speed")
+        # Emergency override — target_sensor too hot, go to max immediately
+        if target_sensor >= self.emergency:
+            print(f"EMERGENCY: Target Sensor {target_sensor:.1f}C >= {self.emergency}C — max fan speed")
             self.apply_rpm(self.max0, self.max1)
             self.ramping0 = True
             self.ramping1 = True
             return True
 
         # Calculate target RPM for each fan independently
-        rpm0 = calc_rpm(gpu, self.floor0, self.max0,
+        rpm0 = calc_rpm(target_sensor, self.floor0, self.max0,
                         self.start_temp, self.max_temp,
                         self.hysteresis, self.ramping0)
 
-        rpm1 = calc_rpm(gpu, self.floor1, self.max1,
+        rpm1 = calc_rpm(target_sensor, self.floor1, self.max1,
                         self.start_temp, self.max_temp,
                         self.hysteresis, self.ramping1)
 
@@ -166,9 +169,9 @@ class FanDaemon:
         self.apply_rpm(rpm0, rpm1)
 
         # Status line
-        cpu_str = f"  CPU {cpu:.1f}C" if cpu is not None else ""
-        if gpu >= self.emergency:
-            print(f"GPU {gpu:.1f}C{cpu_str} >= {self.emergency}C  ->  EMERGENCY MAX FAN")
+        target_str = f"  Target {target_sensor:.1f}C" if target_sensor is not None else ""
+        if target_sensor >= self.emergency:
+            print(f"Target Sensor {target_sensor:.1f}C{target_str} >= {self.emergency}C  ->  EMERGENCY MAX FAN")
 
         return True
 
@@ -176,6 +179,7 @@ class FanDaemon:
         """Main daemon loop."""
         print(f"MacFanControl daemon starting.")
         print(f"  GPU sensor : {self.gpu_key}")
+        print(f"  CPU sensor : {self.cpu_key}")
         print(f"  Curve      : {self.start_temp}C - {self.max_temp}C")
         print(f"  Fan0 range : {self.floor0} - {self.max0} RPM")
         print(f"  Fan1 range : {self.floor1} - {self.max1} RPM")

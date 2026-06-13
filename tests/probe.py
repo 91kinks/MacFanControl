@@ -52,6 +52,7 @@ BINARY_PATH = os.path.join(
 # This will grow as we identify keys from the raw dump.
 KNOWN_KEYS = {
     # CPU
+    "TC0F": "CPU die (Apple SPMI)",
     "TC0P": "CPU proximity",
     "TC0C": "CPU core 0",
     "TC1C": "CPU core 1",

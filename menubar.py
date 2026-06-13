@@ -7,7 +7,7 @@ The daemon (daemon.py) handles all fan control.
 This app just displays current sensor and fan state in the menu bar.
 
 Displays in menu bar title:
-    GPU 62°C  ↑2600
+    Target Sensor 62°C  ↑2600
 
 Menu items show:
     GPU: 62.3°C
@@ -189,6 +189,7 @@ class MacFanControlApp(rumps.App):
 
         gpu = temps.get(self.gpu_key)
         cpu = temps.get(self.cpu_key)
+        target_sensor = cpu
 
         # Update menu items
         self.gpu_item.title = f"GPU: {gpu:.1f}°C" if gpu is not None else "GPU: --"
@@ -215,12 +216,12 @@ class MacFanControlApp(rumps.App):
         )
 
         # Update the menu bar title
-        # Shows GPU temp and fan 0 actual RPM as a quick glance
-        if gpu is not None:
+        # Shows target_sensor temp and fan 0 actual RPM as a quick glance
+        if target_sensor is not None:
             fan_rpm = fans[0]["actual"] if fans else 0
-            self.title = f"GPU {gpu:.0f}°C  ↑{fan_rpm}"
+            self.title = f"Temp {target_sensor:.0f}°C  ↑{fan_rpm}"
         else:
-            self.title = "GPU --°C"
+            self.title = "Temp --°C"
 
 
 # ---------------------------------------------------------------------------

@@ -2,7 +2,7 @@
 fan_curve.py
 MacFanControl - Fan curve calculation.
 
-Computes target RPM for each fan based on GPU temperature.
+Computes target RPM for each fan based on target_sensor temperature.
 All curve logic lives here, isolated from the daemon loop.
 
 Curve behavior:
@@ -25,10 +25,10 @@ def calc_rpm(
     ramping_up: bool
 ) -> int:
     """
-    Calculate target RPM for a single fan given current GPU temperature.
+    Calculate target RPM for a single fan given current target_sensor temperature.
 
     Args:
-        temp:        current GPU temperature in celsius
+        temp:        current target_sensor temperature in celsius
         floor_rpm:   minimum RPM to hold below the curve start
         max_rpm:     maximum RPM at or above max_temp
         start_temp:  temperature at which the ramp begins

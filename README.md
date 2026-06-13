@@ -14,7 +14,7 @@ Built as a minimal replacement for Macs Fan Control, which caused severe system 
 
 ## Why This Exists
 
-Macs Fan Control is a great app, but on older MacBook Pros it can cause the system to become nearly unusable due to CPU and RAM overhead. This project does exactly one thing well: read the GPU temperature and adjust fan speed accordingly, with almost zero system impact.
+Macs Fan Control is a great app, but on older MacBook Pros it can cause the system to become nearly unusable due to CPU and RAM overhead. This project does exactly one thing well: read the target_sensor temperature and adjust fan speed accordingly, with almost zero system impact.
 
 Apple's built-in auto fan control on the 2015 MacBook Pro is overly aggressive — fans ramp up fast and stay high long after temperatures drop. This daemon uses a smoother, more conservative curve that keeps the machine quiet while still protecting the hardware.
 
@@ -34,13 +34,13 @@ May work on other 2013–2015 Intel MacBook Pros with similar SMC key layouts. T
 
 ## Features
 
-- GPU temperature-based fan curve
+- GPU/CPU temperature-based fan curve
 - Independent RPM control for left and right fans
 - Configurable curve, floor RPM, and hysteresis
 - Emergency override at configurable temperature ceiling
 - Automatic restore to Apple control on crash or exit
 - Runs as a login daemon via launchd
-- Menu bar display showing GPU temp and fan RPM
+- Menu bar display showing target_sensor temp and fan RPM
 - Dry-run mode for testing without touching the fans
 - Single install script handles all setup automatically
 - Extremely low resource usage
@@ -121,7 +121,7 @@ This dumps all temperature keys and fan info from your SMC with no writes. Look 
 
     "sensor": {
         "gpu_temp_key": "TG0D",
-        "cpu_temp_key": "TC1C"
+        "cpu_temp_key": "TC0F"
     },
 
     "poll_interval_seconds": 3,
@@ -155,6 +155,7 @@ This dumps all temperature keys and fan info from your SMC with no writes. Look 
 
 **Config notes:**
 - Update `gpu_temp_key` if your probe output showed a different key
+- Update `target_sensor` if you want the hottest sensor to be the fan curve driving sensor
 - `floor_rpm` — the RPM both fans hold at rest. On this hardware fans typically hover around 2500–2600 RPM at idle (~60–65°C), so 2600 was chosen as the floor
 - `start_temp` — 66°C is where the ramp begins. Below this the machine is cool enough that Apple's thermal headroom is comfortable
 - `max_temp` — MacBook GPU temps approach thermal limits around 95°C, so that's where fans hit maximum
@@ -296,16 +297,16 @@ max ─────────────────────────�
 floor───────────────────────/──
      |              ───────/
      |         ────/
-     +─────────────────────────────> GPU Temp (C)
-              62  66              95
+     +─────────────────────────────> Target_Sensor Temp (C)
+              62  66              88
                ↑   ↑               ↑
           ramp-down  ramp-up     emergency
           threshold  threshold    override
 ```
 
 - **Below 66°C** — fans hold at floor RPM (quiet)
-- **66°C to 95°C** — linear ramp to max RPM
-- **At 95°C** — immediate override to hardware maximum
+- **66°C to 88°C** — linear ramp to max RPM
+- **At 88°C** — immediate override to hardware maximum
 - **Hysteresis** — fans only start ramping down once temp drops below 62°C, preventing rapid oscillation
 
 Each fan scales against its own hardware min/max independently.
@@ -328,7 +329,8 @@ logs/menubar.err    # menu bar stderr
 | Key  | Description            | Notes                         |
 |------|------------------------|-------------------------------|
 | TG0D | GPU die temperature    | Primary control sensor        |
-| TC1C | CPU core 1 temperature | Secondary / informational     |
+| TC0F | CPU die temperature    | Primary control sensor        |
+| TC1C | CPU core 1 temperature | Informational                 |
 | F0Tg | Fan 0 target RPM       | fpe2 encoded, big-endian      |
 | F1Tg | Fan 1 target RPM       | fpe2 encoded, big-endian      |
 | FS!  | Forced mode bitmask    | bit 0 = fan 0, bit 1 = fan 1  |

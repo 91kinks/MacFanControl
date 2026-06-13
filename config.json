@@ -3,7 +3,8 @@
 
     "sensor": {
         "gpu_temp_key": "TG0D",
-        "cpu_temp_key": "TC1C"
+        "cpu_temp_key": "TC0F",
+        "target_sensor_key": "cpu"
     },
 
     "poll_interval_seconds": 3,
@@ -22,12 +23,12 @@
 
     "curve": {
         "start_temp":  66,
-        "max_temp":    95,
+        "max_temp":    88,
         "hysteresis":   4
     },
 
     "safety": {
-        "emergency_temp": 95,
+        "emergency_temp": 88,
         "sensor_fail_action": "auto"
     },
 
