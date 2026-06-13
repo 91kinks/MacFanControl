@@ -247,11 +247,11 @@ class FanDaemon:
         # Cooldown cleared (or fans were already at floor) — run the curve normally
         rpm0 = calc_rpm(target_sensor, self.floor0, self.max0,
                         self.start_temp, self.max_temp,
-                        self.hysteresis, self.exponent, self.ramping0)
+                        self.hysteresis, self.ramping0, self.exponent)
 
         rpm1 = calc_rpm(target_sensor, self.floor1, self.max1,
                         self.start_temp, self.max_temp,
-                        self.hysteresis, self.exponent, self.ramping1)
+                        self.hysteresis, self.ramping1, self.exponent)
 
         new_ramping0 = rpm0 > self.floor0
         new_ramping1 = rpm1 > self.floor1
