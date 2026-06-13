@@ -32,7 +32,7 @@ import time
 from sensors import read_gpu_temp, read_cpu_temp, set_rpm, set_auto
 from fan_curve import calc_rpm
 from speed_watcher import SpeedLimitWatcher
-
+from override import read_override, OVERRIDE_PATH
 
 # ---------------------------------------------------------------------------
 # Config loader
@@ -169,6 +169,30 @@ class FanDaemon:
         Single poll cycle.
         Returns False if the daemon should stop (sensor failure).
         """
+        # --- User override ---
+        # Check before sensors so manual/max modes bypass the curve entirely.
+        override = read_override()
+        override_mode = override.get("mode", "auto")
+ 
+        if override_mode == "max":
+            self.apply_rpm(self.max0, self.max1)
+            self.ramping0     = True
+            self.ramping1     = True
+            self._cool_since  = None
+            return True
+ 
+        if override_mode == "manual":
+            manual_rpm = int(override.get("rpm", self.floor0))
+            manual_rpm0 = max(self.floor0, min(self.max0, manual_rpm))
+            manual_rpm1 = max(self.floor1, min(self.max1, manual_rpm))
+            self.apply_rpm(manual_rpm0, manual_rpm1)
+            # While in manual mode, keep ramp state neutral so
+            # switching back to auto starts fresh without a cooldown hold.
+            self.ramping0     = False
+            self.ramping1     = False
+            self._cool_since  = None
+            return True
+
         gpu = read_gpu_temp(self.binary, self.gpu_key)
         cpu = read_cpu_temp(self.binary, self.cpu_key)
 
@@ -282,6 +306,7 @@ class FanDaemon:
         print(f"  SPD emergency : {self.speed_limit_emergency}%")
         print(f"  Interval      : {self.interval}s")
         print(f"  Speed watcher : live (pmset thermlog thread)")
+        print(f"  Override file : {OVERRIDE_PATH}")
         if self.dry_run:
             print(f"  Mode          : DRY RUN (no writes)")
         print()

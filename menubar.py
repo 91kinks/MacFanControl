@@ -1,30 +1,37 @@
 """
 menubar.py
-MacFanControl - Menu bar status display.
+MacFanControl - Menu bar status display and manual override control.
 
-READ-ONLY. Does not write to the SMC or interfere with the daemon.
-The daemon (daemon.py) handles all fan control.
-This app just displays current sensor and fan state in the menu bar.
+Displays current sensor and fan state in the menu bar.
+Allows user to set fan mode (Auto / Manual / Max) via the dropdown.
+Writes override.json — the daemon reads this on every tick.
 
 Displays in menu bar title (normal):
-    Target Sensor 62°C  ↑2600
+    62°C  ↑2600  100%
+
 Displays in menu bar title (speed limit warning):
-    ⚠ GPU 72°C  SPD 65%
-Menu items show:
-    GPU: 62.3°C
-    Target (TC0F): 58.1°C
-    ─────────────
+    ⚠ 72°C  ↑3200  65%
+
+Menu structure:
+    62.3°C  (TC0F — control sensor)
+    GPU (TG0D): 58.1°C
     CPU Speed: 100%
     ─────────────
-    Fan 0 (Left):   2600 RPM  [auto]
-    Fan 1 (Right):  2600 RPM  [auto]
+    Fan 0 (Left Fan):   2600 RPM  [auto]
+    Fan 1 (Right Fan):  2600 RPM  [auto]
     ─────────────
-    Daemon: running
+    Mode: ● Auto
+      → Set Auto
+      → Set Max
+    Manual RPM: 4000
+      [ – 500 ]  [ – 100 ]  [ + 100 ]  [ + 500 ]
+      [ Enter RPM... ]
+    ─────────────
+    Daemon: ● running
     ─────────────
     Quit
 
 Usage:
-    Run from the project root (daemon should already be running):
     /Users/USERNAME/MacFanControl/venv/bin/python3 menubar.py
 """
 
@@ -37,13 +44,16 @@ import rumps
 import AppKit
 
 from sensors import read_cpu_speed_limit
+from override import read_override, write_override, OVERRIDE_PATH
 
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
 
-CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
+CONFIG_PATH     = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
 REFRESH_SECONDS = 3
+MANUAL_RPM_MIN = 2600
+MANUAL_RPM_MAX = 6156
 
 
 def load_config() -> dict:
@@ -145,26 +155,59 @@ class MacFanControlApp(rumps.App):
     def __init__(self, config: dict, binary: str):
         super().__init__("MacFanControl", title="🌡 --°C")
 
-        self._dock_hidden = False
-
-        self.config = config
-        self.binary = binary
-        self.gpu_key = config["sensor"]["gpu_temp_key"]
-        self.cpu_key = config["sensor"]["cpu_temp_key"]
-        self.target_key = config["sensor"]["target_sensor_key"] # "cpu" or "gpu"
+        self.config  = config
+        self.binary  = binary
+        self.gpu_key    = config["sensor"]["gpu_temp_key"]
+        self.cpu_key    = config["sensor"]["cpu_temp_key"]
+        self.target_key = config["sensor"]["target_sensor_key"]  # "cpu" or "gpu"
 
         # Speed limit threshold for title bar warning (mirrors daemon config)
         self.speed_limit_warn = config["safety"].get("speed_limit_warn", 70)
 
-        # Build static menu structure
+        # Floor/max from config — used to clamp manual RPM
+        self.floor_rpm = min(config["fan0"]["floor_rpm"], config["fan1"]["floor_rpm"])
+        self.max_rpm   = max(config["fan0"]["max_rpm"],   config["fan1"]["max_rpm"])
+
+        # Current manual RPM — starts at floor, updated by buttons/dialog
+        self._manual_rpm = max(self.floor_rpm, 3000)
+
+        # ---------------------------------------------------------------------------
+        # Sensor display items
+        # ---------------------------------------------------------------------------
         self.target_item = rumps.MenuItem("Target: --°C")
+        self.gpu_item    = rumps.MenuItem("GPU: --°C")
         self.speed_item  = rumps.MenuItem("CPU Speed: --%")
-        self.gpu_item    = rumps.MenuItem("GPU: --")
-        self.cpu_item    = rumps.MenuItem("CPU: --")
-        self.fan0_item   = rumps.MenuItem("Fan 0: --")
-        self.fan1_item   = rumps.MenuItem("Fan 1: --")
+
+        # ---------------------------------------------------------------------------
+        # Fan display items
+        # ---------------------------------------------------------------------------
+        self.fan0_item = rumps.MenuItem("Fan 0: --")
+        self.fan1_item = rumps.MenuItem("Fan 1: --")
+
+        # ---------------------------------------------------------------------------
+        # Mode control items
+        # ---------------------------------------------------------------------------
+        self.mode_item     = rumps.MenuItem("Mode: ● Auto")
+        self.set_auto_item = rumps.MenuItem("  → Set Auto",   callback=self.on_set_auto)
+        self.set_max_item  = rumps.MenuItem("  → Set Max",    callback=self.on_set_max)
+
+        # Manual RPM display + adjustment buttons
+        self.manual_rpm_item  = rumps.MenuItem(f"Manual RPM: {self._manual_rpm}")
+        self.btn_minus500     = rumps.MenuItem("  [ – 500 ]",      callback=self.on_minus500)
+        self.btn_minus100     = rumps.MenuItem("  [ – 100 ]",      callback=self.on_minus100)
+        self.btn_plus100      = rumps.MenuItem("  [ + 100 ]",      callback=self.on_plus100)
+        self.btn_plus500      = rumps.MenuItem("  [ + 500 ]",      callback=self.on_plus500)
+        self.btn_enter_rpm    = rumps.MenuItem("  [ Enter RPM... ]", callback=self.on_enter_rpm)
+        self.btn_set_manual   = rumps.MenuItem("  → Set Manual",   callback=self.on_set_manual)
+
+        # ---------------------------------------------------------------------------
+        # Daemon status
+        # ---------------------------------------------------------------------------
         self.daemon_item = rumps.MenuItem("Daemon: checking...")
 
+        # ---------------------------------------------------------------------------
+        # Menu structure
+        # ---------------------------------------------------------------------------
         self.menu = [
             self.target_item,
             self.speed_item,
@@ -175,14 +218,26 @@ class MacFanControlApp(rumps.App):
             self.fan0_item,
             self.fan1_item,
             rumps.separator,
+            self.mode_item,
+            self.set_auto_item,
+            self.set_max_item,
+            self.manual_rpm_item,
+            self.btn_minus500,
+            self.btn_minus100,
+            self.btn_plus100,
+            self.btn_plus500,
+            self.btn_enter_rpm,
+            self.btn_set_manual,
+            rumps.separator,
             self.daemon_item,
-            rumps.separator
+            rumps.separator,
         ]
 
         # Start the refresh timer
         self.timer = rumps.Timer(self.refresh, REFRESH_SECONDS)
         self.timer.start()
 
+        # Hide from dock once NSApp is ready
         self._hide_timer = rumps.Timer(self._hide_from_dock, 0.1)
         self._hide_timer.start()
 
@@ -196,38 +251,108 @@ class MacFanControlApp(rumps.App):
             AppKit.NSApplicationActivationPolicyAccessory
         )
 
+    # ---------------------------------------------------------------------------
+    # Override helpers
+    # ---------------------------------------------------------------------------
+
+    def _clamp_rpm(self, rpm: int) -> int:
+        return max(self.floor_rpm, min(self.max_rpm, rpm))
+
+    def _apply_manual_rpm(self, rpm: int):
+        """Clamp, save, and write manual override."""
+        self._manual_rpm = self._clamp_rpm(rpm)
+        self.manual_rpm_item.title = f"Manual RPM: {self._manual_rpm}"
+        write_override("manual", self._manual_rpm)
+
+    # ---------------------------------------------------------------------------
+    # Mode button callbacks
+    # ---------------------------------------------------------------------------
+
+    def on_set_auto(self, _):
+        write_override("auto")
+
+    def on_set_max(self, _):
+        write_override("max")
+
+    def on_set_manual(self, _):
+        write_override("manual", self._manual_rpm)
+
+    # ---------------------------------------------------------------------------
+    # RPM adjustment callbacks
+    # ---------------------------------------------------------------------------
+
+    def on_minus500(self, _):
+        self._apply_manual_rpm(self._manual_rpm - 500)
+
+    def on_minus100(self, _):
+        self._apply_manual_rpm(self._manual_rpm - 100)
+
+    def on_plus100(self, _):
+        self._apply_manual_rpm(self._manual_rpm + 100)
+
+    def on_plus500(self, _):
+        self._apply_manual_rpm(self._manual_rpm + 500)
+
+    def on_enter_rpm(self, _):
+        """Show a native macOS dialog for direct RPM text input."""
+        response = rumps.Window(
+            message=f"Enter target RPM ({self.floor_rpm} – {self.max_rpm}):",
+            title="Manual Fan RPM",
+            default_text=str(self._manual_rpm),
+            ok="Set",
+            cancel="Cancel",
+            dimensions=(200, 24)
+        ).run()
+
+        if response.clicked:
+            try:
+                rpm = int(response.text.strip())
+                self._apply_manual_rpm(rpm)
+            except ValueError:
+                rumps.alert(
+                    title="Invalid RPM",
+                    message=f"Please enter a whole number between "
+                            f"{self.floor_rpm} and {self.max_rpm}.",
+                    ok="OK"
+                )
+
+    # ---------------------------------------------------------------------------
+    # Refresh — called every REFRESH_SECONDS
+    # ---------------------------------------------------------------------------
     def refresh(self, _):
         """Called every REFRESH_SECONDS to update all display values."""
-        temps = read_temps(self.binary)
-        fans  = read_fans(self.binary)
+        temps       = read_temps(self.binary)
+        fans        = read_fans(self.binary)
         speed_limit = read_cpu_speed_limit()
+        override    = read_override()
 
-        gpu = temps.get(self.gpu_key)
-        cpu = temps.get(self.cpu_key)
-        target = temps.get(self.cpu_key if self.target_key == "cpu" else self.gpu_key)
+        # Resolve sensors
+        target_smc = self.cpu_key if self.target_key == "cpu" else self.gpu_key
+        gpu        = temps.get(self.gpu_key)
+        cpu        = temps.get(self.cpu_key)
+        target     = temps.get(target_smc)
+        
 
-        # Determine the display label for the target sensor key string
-        target_smc_key = self.cpu_key if self.target_key == "cpu" else self.gpu_key
-        # Update menu items
+        # --- Sensor display ---
+        self.target_item.title = (
+            f"Target ({target_smc}): {target:.1f}°C"
+            if target is not None else f"Target ({target_smc}): --"
+        )
         self.gpu_item.title = (
-            f"GPU ({self.gpu_key}): {gpu:.1f}°C" if gpu is not None else f"GPU ({self.gpu_key}): --"
+            f"GPU ({self.gpu_key}): {gpu:.1f}°C"
+            if gpu is not None else f"GPU ({self.gpu_key}): --"
         )
         self.cpu_item.title = (
             f"CPU ({self.cpu_key}): {cpu:.1f}°C" if cpu is not None else f"CPU ({self.cpu_key}): --"
         )
-        self.target_item.title = (
-            f"Target ({target_smc_key}): {target:.1f}°C"
-            if target is not None
-            else f"Target ({target_smc_key}): --"
-        )
 
         if speed_limit is not None:
-            warn = speed_limit < self.speed_limit_warn
-            flag = " ⚠" if warn else ""
+            flag = " ⚠" if speed_limit < self.speed_limit_warn else ""
             self.speed_item.title = f"CPU Speed: {speed_limit}%{flag}"
         else:
             self.speed_item.title = "CPU Speed: --"
 
+        # --- Fan display ---
         if len(fans) >= 1:
             f0 = fans[0]
             self.fan0_item.title = (
@@ -244,18 +369,35 @@ class MacFanControlApp(rumps.App):
         else:
             self.fan1_item.title = "Fan 1: --"
 
+        # --- Mode display ---
+        mode = override.get("mode", "auto")
+        if mode == "auto":
+            self.mode_item.title = "Mode: ● Auto"
+        elif mode == "max":
+            self.mode_item.title = "Mode: ● Max"
+        elif mode == "manual":
+            held_rpm = override.get("rpm", self._manual_rpm)
+            self.mode_item.title = f"Mode: ● Manual ({held_rpm} RPM)"
+
+        # Keep local manual RPM in sync if another process changed the file
+        if mode == "manual" and "rpm" in override:
+            self._manual_rpm = override["rpm"]
+            self.manual_rpm_item.title = f"Manual RPM: {self._manual_rpm}"
+
+        # --- Daemon status ---
         self.daemon_item.title = (
             "Daemon: ● running" if daemon_running() else "Daemon: ○ not running"
         )
 
-        # Update the menu bar title
-        # Shows target_sensor temp and fan 0 actual RPM as a quick glance
-        fan_rpm = fans[0]["actual"] if fans else 0
-        target_str = f"{target:.0f}°C" if target is not None else f"--°C"
+        # --- Title bar ---
+        fan_rpm    = fans[0]["actual"] if fans else 0
+        target_str = f"{target:.0f}°C" if target is not None else "--°C"
+        spd_str    = f"  {speed_limit}%" if speed_limit is not None else ""
+
         if speed_limit is not None and speed_limit < self.speed_limit_warn:
-            self.title = f"⚠ {target_str}  SPD {speed_limit}%"
+            self.title = f"⚠ {target_str}  ↑{fan_rpm}{spd_str}"
         else:
-            self.title = f"{target_str}  ↑{fan_rpm} {speed_limit}%"
+            self.title = f"{target_str}  ↑{fan_rpm}{spd_str}"
 
 
 # ---------------------------------------------------------------------------
