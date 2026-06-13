@@ -176,6 +176,7 @@ class MacFanControlApp(rumps.App):
         # ---------------------------------------------------------------------------
         self.target_item = rumps.MenuItem("Target: --°C")
         self.gpu_item    = rumps.MenuItem("GPU: --°C")
+        self.cpu_item    = rumps.MenuItem("CPU: --°C")
         self.speed_item  = rumps.MenuItem("CPU Speed: --%")
 
         # ---------------------------------------------------------------------------
