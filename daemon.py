@@ -100,7 +100,6 @@ class FanDaemon:
         self.interval = config.get("poll_interval_seconds", 3)
 
         # Runtime state
-        self._was_ramping = False
         self.ramping0  = False
         self.ramping1  = False
         self.last_rpm0 = -1
@@ -203,7 +202,6 @@ class FanDaemon:
             self.apply_rpm(self.max0, self.max1)
             self.ramping0     = True
             self.ramping1     = True
-            self._was_ramping = True
             self._cool_since  = None
             return True
 
@@ -214,7 +212,6 @@ class FanDaemon:
             self.apply_rpm(self.max0, self.max1)
             self.ramping0     = True
             self.ramping1     = True
-            self._was_ramping = True
             self._cool_since  = None
             return True
 
@@ -253,22 +250,11 @@ class FanDaemon:
                         self.start_temp, self.max_temp,
                         self.hysteresis, self.ramping1, self.exponent)
 
-        new_ramping0 = rpm0 > self.floor0
-        new_ramping1 = rpm1 > self.floor1
+        self.ramping0 = rpm0 > self.floor0
+        self.ramping1 = rpm1 > self.floor1
 
-        if self._was_ramping and not cooldown_done:
-            # Stay latched — don't let ramping flip to False yet
-            self.ramping0 = True
-            self.ramping1 = True
-        else:
-            self.ramping0     = new_ramping0
-            self.ramping1     = new_ramping1
-            self._was_ramping = new_ramping0 or new_ramping1
-
-        # If fans genuinely returned to floor and cooldown is done, clear everything
-        if not new_ramping0 and not new_ramping1 and cooldown_done:
-            self._was_ramping = False
-            self._cool_since  = None  # reset — fully cooled down, clean slate
+        if not self.ramping0 and not self.ramping1:
+            self._cool_since = None
 
         self.apply_rpm(rpm0, rpm1)
 
