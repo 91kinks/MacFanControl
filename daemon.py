@@ -88,6 +88,7 @@ class FanDaemon:
         self.start_temp       = config["curve"]["start_temp"]
         self.max_temp         = config["curve"]["max_temp"]
         self.hysteresis       = config["curve"]["hysteresis"]
+        self.exponent         = config["curve"].get("exponent", 1.0)
         self.cooldown_seconds = config["curve"].get("cooldown_seconds", 60)
 
         # Safety config
@@ -243,11 +244,11 @@ class FanDaemon:
         # Cooldown cleared (or fans were already at floor) — run the curve normally
         rpm0 = calc_rpm(target_sensor, self.floor0, self.max0,
                         self.start_temp, self.max_temp,
-                        self.hysteresis, self.ramping0)
+                        self.hysteresis, self.exponent, self.ramping0)
 
         rpm1 = calc_rpm(target_sensor, self.floor1, self.max1,
                         self.start_temp, self.max_temp,
-                        self.hysteresis, self.ramping1)
+                        self.hysteresis, self.exponent, self.ramping1)
 
         self.ramping0 = rpm0 > self.floor0
         self.ramping1 = rpm1 > self.floor1

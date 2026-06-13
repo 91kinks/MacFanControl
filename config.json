@@ -25,7 +25,8 @@
         "start_temp":  66,
         "max_temp":    85,
         "hysteresis":   4,
-        "cooldown_seconds": 60
+        "cooldown_seconds": 60,
+        "exponent": 0.7
     },
 
     "safety": {
