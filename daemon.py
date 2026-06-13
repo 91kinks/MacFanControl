@@ -230,7 +230,7 @@ class FanDaemon:
         currently_ramping = self.ramping0 or self.ramping1
         cooldown_done     = self._cooldown_cleared(speed_limit)
 
-        if currently_ramping and not cooldown_done:
+        if currently_ramping and not cooldown_done and target_sensor < lower_threshold:
             elapsed   = (time.monotonic() - self._cool_since) if self._cool_since else 0
             remaining = max(0, self.cooldown_seconds - elapsed)
             if target_sensor >= self.log_threshold:
