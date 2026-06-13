@@ -11,18 +11,18 @@
 
     "fan0": {
         "label": "Left side",
-        "floor_rpm": 3100,
+        "floor_rpm": 2600,
         "max_rpm": 6156
     },
 
     "fan1": {
         "label": "Right side",
-        "floor_rpm": 3000,
+        "floor_rpm": 2500,
         "max_rpm": 5700
     },
 
     "curve": {
-        "start_temp":  66,
+        "start_temp":  60,
         "max_temp":    85,
         "hysteresis":   4,
         "cooldown_seconds": 60,
