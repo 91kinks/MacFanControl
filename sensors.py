@@ -11,10 +11,10 @@ Public API:
     read_fans(binary)             -> list[dict] | None
     set_rpm(binary, rpm0, rpm1)   -> bool
     set_auto(binary)              -> bool
+    read_cpu_speed_limit()        -> int | None (used by menubar; daemon uses its own thread)
 """
 
 import subprocess
-import shlex
 
 
 def _run(binary: str, args: list[str], needs_sudo: bool = False) -> tuple[int, str, str]:
@@ -65,9 +65,9 @@ def read_gpu_temp(binary: str, key: str = "TG0D") -> float | None:
     return temps.get(key, None)
 
 
-def read_cpu_temp(binary: str, key: str = "TC1C") -> float | None:
+def read_cpu_temp(binary: str, key: str = "TC0F") -> float | None:
     """
-    Read CPU temperature from the SMC.
+    Read target sensor temperature from the SMC.
     Returns celsius as float, or None if the read failed.
     """
     rc, stdout, stderr = _run(binary, ["temps"])
@@ -139,3 +139,45 @@ def set_auto(binary: str) -> bool:
     """
     rc, stdout, stderr = _run(binary, ["set-auto"], needs_sudo=True)
     return rc == 0
+
+
+def read_cpu_speed_limit() -> int | None:
+    """
+    Read the current CPU_Speed_Limit from `pmset -g therm`.
+
+    Used by the menu bar for its 3-second display refresh.
+    The daemon does NOT use this — it has its own SpeedLimitWatcher thread
+    that listens to `pmset -g thermlog` and reacts instantly to changes.
+
+    `pmset -g therm` exits immediately with a current snapshot:
+        CPU_Scheduler_Limit   = 100
+        CPU_Available_CPUs    = 8
+        CPU_Speed_Limit       = 100
+
+    Returns the limit as int (0-100), or None if unreadable.
+    100 = no throttling. Below 100 = system is throttling the CPU.
+    """
+    try:
+        result = subprocess.run(
+            ["pmset", "-g", "therm"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if result.returncode != 0:
+            return None
+
+        for line in result.stdout.splitlines():
+            if "CPU_Speed_Limit" in line:
+                parts = line.split("=")
+                if len(parts) == 2:
+                    try:
+                        return int(parts[1].strip())
+                    except ValueError:
+                        pass
+        return None
+
+    except subprocess.TimeoutExpired:
+        return None
+    except Exception:
+        return None

@@ -6,12 +6,15 @@ READ-ONLY. Does not write to the SMC or interfere with the daemon.
 The daemon (daemon.py) handles all fan control.
 This app just displays current sensor and fan state in the menu bar.
 
-Displays in menu bar title:
+Displays in menu bar title (normal):
     Target Sensor 62°C  ↑2600
-
+Displays in menu bar title (speed limit warning):
+    ⚠ GPU 72°C  SPD 65%
 Menu items show:
     GPU: 62.3°C
-    CPU: 58.1°C
+    Target (TC0F): 58.1°C
+    ─────────────
+    CPU Speed: 100%
     ─────────────
     Fan 0 (Left):   2600 RPM  [auto]
     Fan 1 (Right):  2600 RPM  [auto]
@@ -32,6 +35,9 @@ import sys
 
 import rumps
 import AppKit
+
+from sensors import read_cpu_speed_limit
+
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
@@ -145,9 +151,14 @@ class MacFanControlApp(rumps.App):
         self.binary = binary
         self.gpu_key = config["sensor"]["gpu_temp_key"]
         self.cpu_key = config["sensor"]["cpu_temp_key"]
+        self.target_key = config["sensor"]["target_sensor_key"] # "cpu" or "gpu"
+
+        # Speed limit threshold for title bar warning (mirrors daemon config)
+        self.speed_limit_warn = config["safety"].get("speed_limit_warn", 70)
 
         # Build static menu structure
-        # rumps.separator is a divider line
+        self.target_item = rumps.MenuItem("Target: --°C")
+        self.speed_item  = rumps.MenuItem("CPU Speed: --%")
         self.gpu_item    = rumps.MenuItem("GPU: --")
         self.cpu_item    = rumps.MenuItem("CPU: --")
         self.fan0_item   = rumps.MenuItem("Fan 0: --")
@@ -155,6 +166,9 @@ class MacFanControlApp(rumps.App):
         self.daemon_item = rumps.MenuItem("Daemon: checking...")
 
         self.menu = [
+            self.target_item,
+            self.speed_item,
+            rumps.separator,
             self.gpu_item,
             self.cpu_item,
             rumps.separator,
@@ -186,14 +200,33 @@ class MacFanControlApp(rumps.App):
         """Called every REFRESH_SECONDS to update all display values."""
         temps = read_temps(self.binary)
         fans  = read_fans(self.binary)
+        speed_limit = read_cpu_speed_limit()
 
         gpu = temps.get(self.gpu_key)
         cpu = temps.get(self.cpu_key)
-        target_sensor = cpu
+        target = temps.get(self.cpu_key if self.target_key == "cpu" else self.gpu_key)
 
+        # Determine the display label for the target sensor key string
+        target_smc_key = self.cpu_key if self.target_key == "cpu" else self.gpu_key
         # Update menu items
-        self.gpu_item.title = f"GPU: {gpu:.1f}°C" if gpu is not None else "GPU: --"
-        self.cpu_item.title = f"CPU: {cpu:.1f}°C" if cpu is not None else "CPU: --"
+        self.gpu_item.title = (
+            f"GPU ({self.gpu_key}): {gpu:.1f}°C" if gpu is not None else f"GPU ({self.gpu_key}): --"
+        )
+        self.cpu_item.title = (
+            f"CPU ({self.cpu_key}): {cpu:.1f}°C" if cpu is not None else f"CPU ({self.cpu_key}): --"
+        )
+        self.target_item.title = (
+            f"Target ({target_smc_key}): {target:.1f}°C"
+            if target is not None
+            else f"Target ({target_smc_key}): --"
+        )
+
+        if speed_limit is not None:
+            warn = speed_limit < self.speed_limit_warn
+            flag = " ⚠" if warn else ""
+            self.speed_item.title = f"CPU Speed: {speed_limit}%{flag}"
+        else:
+            self.speed_item.title = "CPU Speed: --"
 
         if len(fans) >= 1:
             f0 = fans[0]
@@ -217,11 +250,12 @@ class MacFanControlApp(rumps.App):
 
         # Update the menu bar title
         # Shows target_sensor temp and fan 0 actual RPM as a quick glance
-        if target_sensor is not None:
-            fan_rpm = fans[0]["actual"] if fans else 0
-            self.title = f"Temp {target_sensor:.0f}°C  ↑{fan_rpm}"
+        fan_rpm = fans[0]["actual"] if fans else 0
+        target_str = f"{target:.0f}°C" if target is not None else f"--°C"
+        if speed_limit is not None and speed_limit < self.speed_limit_warn:
+            self.title = f"⚠ {target_str}  SPD {speed_limit}%"
         else:
-            self.title = "Temp --°C"
+            self.title = f"{target_str}  ↑{fan_rpm}"
 
 
 # ---------------------------------------------------------------------------

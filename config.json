@@ -24,12 +24,15 @@
     "curve": {
         "start_temp":  66,
         "max_temp":    88,
-        "hysteresis":   4
+        "hysteresis":   4,
+        "cooldown_seconds": 60
     },
 
     "safety": {
         "emergency_temp": 88,
-        "sensor_fail_action": "auto"
+        "sensor_fail_action": "auto",
+        "speed_limit_warn": 70,
+        "speed_limit_emergency": 60
     },
 
     "log_threshold_temp": 80
