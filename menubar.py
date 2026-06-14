@@ -28,6 +28,8 @@ Menu structure:
       [ Enter RPM... ]
     ─────────────
     Daemon: ● running
+      → Start Daemon
+      → Stop Daemon
     ─────────────
     Quit
 
@@ -51,6 +53,7 @@ from override import read_override, write_override, OVERRIDE_PATH
 # ---------------------------------------------------------------------------
 
 CONFIG_PATH     = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
+DAEMON_PLIST    = os.path.expanduser("~/Library/LaunchAgents/com.macfancontrol.daemon.plist")
 REFRESH_SECONDS = 3
 MANUAL_RPM_MIN = 2600
 MANUAL_RPM_MAX = 6156
@@ -202,9 +205,11 @@ class MacFanControlApp(rumps.App):
         self.btn_set_manual   = rumps.MenuItem("  → Set Manual",   callback=self.on_set_manual)
 
         # ---------------------------------------------------------------------------
-        # Daemon status
+        # Daemon status + controls
         # ---------------------------------------------------------------------------
-        self.daemon_item = rumps.MenuItem("Daemon: checking...")
+        self.daemon_item       = rumps.MenuItem("Daemon: checking...")
+        self.daemon_start_item = rumps.MenuItem("  → Start Daemon", callback=self.on_start_daemon)
+        self.daemon_stop_item  = rumps.MenuItem("  → Stop Daemon",  callback=self.on_stop_daemon)
 
         # ---------------------------------------------------------------------------
         # Menu structure
@@ -231,6 +236,8 @@ class MacFanControlApp(rumps.App):
             self.btn_set_manual,
             rumps.separator,
             self.daemon_item,
+            self.daemon_start_item,
+            self.daemon_stop_item,
             rumps.separator,
         ]
 
@@ -277,6 +284,24 @@ class MacFanControlApp(rumps.App):
 
     def on_set_manual(self, _):
         write_override("manual", self._manual_rpm)
+
+    # ---------------------------------------------------------------------------
+    # Daemon control callbacks
+    # ---------------------------------------------------------------------------
+
+    def on_start_daemon(self, _):
+        """Load the daemon launchd agent."""
+        try:
+            subprocess.run(["launchctl", "load", DAEMON_PLIST], check=True)
+        except Exception as e:
+            rumps.alert(title="Start Failed", message=str(e), ok="OK")
+
+    def on_stop_daemon(self, _):
+        """Unload the daemon launchd agent and restore auto fan control."""
+        try:
+            subprocess.run(["launchctl", "unload", DAEMON_PLIST], check=True)
+        except Exception as e:
+            rumps.alert(title="Stop Failed", message=str(e), ok="OK")
 
     # ---------------------------------------------------------------------------
     # RPM adjustment callbacks
@@ -386,9 +411,12 @@ class MacFanControlApp(rumps.App):
             self.manual_rpm_item.title = f"Manual RPM: {self._manual_rpm}"
 
         # --- Daemon status ---
+        running = daemon_running()
         self.daemon_item.title = (
-            "Daemon: ● running" if daemon_running() else "Daemon: ○ not running"
+            "Daemon: ● running" if running else "Daemon: ○ stopped"
         )
+        self.daemon_start_item.title = "  → Start Daemon"
+        self.daemon_stop_item.title  = "  → Stop Daemon"
 
         # --- Title bar ---
         fan_rpm    = fans[0]["actual"] if fans else 0

@@ -162,7 +162,7 @@ cat > /tmp/com.macfancontrol.daemon.plist << EOF
     </array>
 
     <key>RunAtLoad</key>
-    <true/>
+    <false/>
 
     <key>KeepAlive</key>
     <dict>
