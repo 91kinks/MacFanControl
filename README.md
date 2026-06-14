@@ -14,9 +14,9 @@ Built as a minimal replacement for Macs Fan Control, which caused severe system 
 
 ## Why This Exists
 
-Macs Fan Control is a great app, but on older MacBook Pros it can cause the system to become nearly unusable due to CPU and RAM overhead. This project does exactly one thing well: read the target_sensor temperature and adjust fan speed accordingly, with almost zero system impact.
+Macs Fan Control is a great app, but on older MacBook Pros it can cause the system to become nearly unusable due to CPU and RAM overhead. This project does exactly one thing well: read sensor temperatures and adjust fan speed accordingly, with almost zero system impact.
 
-Apple's built-in auto fan control on the 2015 MacBook Pro is overly aggressive — fans ramp up fast and stay high long after temperatures drop. This daemon uses a smoother, more conservative curve that keeps the machine quiet while still protecting the hardware.
+Apple's built-in auto fan control on the 2015 MacBook Pro is overly aggressive — fans ramp up fast and stay high long after temperatures drop. This daemon uses a smoother curve that keeps the machine quiet at idle while still pushing hard enough under load to avoid macOS's thermal throttling (`CPU_Speed_Limit`). See [CPU Throttling & Speed Limit Watchdog](#cpu-throttling--speed-limit-watchdog) below for why this matters more than it sounds.
 
 ---
 
@@ -34,13 +34,16 @@ May work on other 2013–2015 Intel MacBook Pros with similar SMC key layouts. T
 
 ## Features
 
-- GPU/CPU temperature-based fan curve
+- Configurable target sensor — drive the fan curve off whichever SMC key runs hottest on your machine (TC0F by default)
+- Exponential fan curve — more aggressive ramp in the mid-range where throttling tends to start, gentle at idle
 - Independent RPM control for left and right fans
-- Configurable curve, floor RPM, and hysteresis
+- Configurable curve, floor RPM, hysteresis, and ramp-down cooldown
 - Emergency override at configurable temperature ceiling
-- Automatic restore to Apple control on crash or exit
-- Runs as a login daemon via launchd
-- Menu bar display showing target_sensor temp and fan RPM
+- **CPU_Speed_Limit watchdog** — live background listener on `pmset -g thermlog`. Forces max fan speed on early throttling and hands off to Apple auto control if throttling becomes severe
+- Manual override modes — Auto, Manual (fixed RPM), and Max, controllable from the menu bar
+- Automatic restore to Apple control on crash, exit, or emergency
+- Runs as a login daemon via launchd — daemon does **not** auto-start by default; start/stop from the menu bar or `macfan` alias
+- Menu bar display showing target sensor temp, GPU temp, CPU speed limit %, fan RPM, and current mode
 - Dry-run mode for testing without touching the fans
 - Single install script handles all setup automatically
 - Extremely low resource usage
@@ -59,14 +62,16 @@ MacFanControl/
 │
 ├── sensors.py              # Subprocess wrapper around macfan_smc
 ├── fan_curve.py            # Fan curve calculation (pure, no I/O)
+├── speed_watcher.py         # Background pmset thermlog listener (daemon-side)
+├── override.py             # Shared override.json read/write (Auto/Manual/Max)
 ├── daemon.py               # Main daemon loop
-├── menubar.py              # Menu bar status display (read-only)
+├── menubar.py              # Menu bar status display + manual controls
 ├── config.json             # User configuration
 ├── macfan.sh               # Process management shortcuts
 ├── install.sh              # Automated install script
 │
-├── com.macfancontrol.daemon.plist    # launchd template (daemon)
-├── com.macfancontrol.menubar.plist   # launchd template (menu bar)
+├── com.macfancontrol.daemon.plist    # launchd template (daemon, RunAtLoad=false)
+├── com.macfancontrol.menubar.plist   # launchd template (menu bar, RunAtLoad=true)
 │
 └── tests/
     └── probe.py            # Read all sensors and fan info (no writes)
@@ -111,7 +116,7 @@ cd ..
 python3 tests/probe.py
 ```
 
-This dumps all temperature keys and fan info from your SMC with no writes. Look for your GPU key in the output — on the MacBookPro11,5 it is `TG0D`. If your machine reports a different key, update `config.json` before proceeding.
+This dumps all temperature keys and fan info from your SMC with no writes. Look for the hottest-running sensor under load — on the MacBookPro11,5 this is `TC0F`. The GPU die sensor `TG0D` is also useful as a secondary/display value. If your machine reports different keys, update `config.json` before proceeding.
 
 ### 4. Review and edit config.json
 
@@ -121,32 +126,37 @@ This dumps all temperature keys and fan info from your SMC with no writes. Look 
 
     "sensor": {
         "gpu_temp_key": "TG0D",
-        "cpu_temp_key": "TC0F"
+        "cpu_temp_key": "TC0F",
+        "target_sensor_key": "cpu"
     },
 
     "poll_interval_seconds": 3,
 
     "fan0": {
         "label": "Left side",
-        "floor_rpm": 2600,
+        "floor_rpm": 3100,
         "max_rpm": 6156
     },
 
     "fan1": {
         "label": "Right side",
-        "floor_rpm": 2600,
+        "floor_rpm": 3000,
         "max_rpm": 5700
     },
 
     "curve": {
-        "start_temp": 66,
-        "max_temp": 95,
-        "hysteresis": 4
+        "start_temp": 60,
+        "max_temp": 85,
+        "hysteresis": 2,
+        "exponent": 0.6,
+        "cooldown_seconds": 45
     },
 
     "safety": {
-        "emergency_temp": 95,
-        "sensor_fail_action": "auto"
+        "emergency_temp": 85,
+        "sensor_fail_action": "auto",
+        "speed_limit_warn": 70,
+        "speed_limit_emergency": 60
     },
 
     "log_threshold_temp": 80
@@ -154,12 +164,15 @@ This dumps all temperature keys and fan info from your SMC with no writes. Look 
 ```
 
 **Config notes:**
-- Update `gpu_temp_key` if your probe output showed a different key
-- Update `target_sensor` if you want the hottest sensor to be the fan curve driving sensor
-- `floor_rpm` — the RPM both fans hold at rest. On this hardware fans typically hover around 2500–2600 RPM at idle (~60–65°C), so 2600 was chosen as the floor
-- `start_temp` — 66°C is where the ramp begins. Below this the machine is cool enough that Apple's thermal headroom is comfortable
-- `max_temp` — MacBook GPU temps approach thermal limits around 95°C, so that's where fans hit maximum
-- `log_threshold_temp` — daemon only logs to stdout above this temperature, keeping the log file manageable during normal operation
+
+- **`target_sensor_key`** — `"cpu"` or `"gpu"`. Selects which of `cpu_temp_key` / `gpu_temp_key` actually drives the fan curve and emergency logic. The other one is read for display only. On the MacBookPro11,5, `cpu_temp_key` is set to `TC0F` (hottest sensor on the board, not strictly "CPU-only") and used as the target — this gives the curve visibility into combined CPU+GPU load rather than GPU die temp alone.
+- **`floor_rpm`** — the RPM both fans hold at rest. Raising this (e.g. 3000-3100 vs. the original 2600) keeps the machine running cooler at idle, which gives the curve less ground to make up once load hits.
+- **`start_temp` / `max_temp`** — the active ramp range. `max_temp` is also where fans hit hardware maximum. Lowering `max_temp` (85°C vs. the original 95°C) means fans reach full speed *before* macOS's thermal governor starts throttling, not after.
+- **`hysteresis`** — degrees below `start_temp` the temp must drop before ramp-down is even considered. Kept low (2°C) because `cooldown_seconds` already handles oscillation prevention — the two together being too conservative caused fans to never ramp down in testing.
+- **`exponent`** — shapes the curve. `1.0` = linear (original behavior). Values below `1.0` (e.g. `0.6`) push more RPM into the middle of the temperature range — exactly the 70-80°C zone where throttling tends to start — without being loud at idle. Values above `1.0` do the opposite (quiet until near `max_temp`, then aggressive).
+- **`cooldown_seconds`** — once temp drops below `start_temp - hysteresis`, fans must stay there for this many seconds (and `CPU_Speed_Limit` must be healthy) before RPM is allowed to decrease. This is what prevents fans from backing off the moment they've made progress, only to let temps creep back up.
+- **`speed_limit_warn` / `speed_limit_emergency`** — see [CPU Throttling & Speed Limit Watchdog](#cpu-throttling--speed-limit-watchdog).
+- **`log_threshold_temp`** — daemon only logs to stdout above this temperature, keeping the log file manageable during normal operation.
 
 ### 5. Set up the Python environment
 
@@ -175,7 +188,7 @@ pip install rumps
 sudo python3 daemon.py --dry-run
 ```
 
-This runs the full loop — reading sensors and computing targets — without writing anything to the SMC. Verify the output looks sensible, then Ctrl+C to exit.
+This runs the full loop — reading sensors, computing targets, checking the speed limit watchdog — without writing anything to the SMC. Verify the startup banner shows the values you expect (target sensor, curve range, exponent, cooldown, speed limit thresholds), then Ctrl+C to exit.
 
 ### 7. Test fan write and restore
 
@@ -205,10 +218,65 @@ The install script will:
 - Add a passwordless sudo rule for the `macfan_smc` binary only
 - Lock the binary to root ownership to prevent privilege escalation
 - Add a `macfan` shell alias for process management
-- Load both launch agents (daemon + menu bar)
+- Load the menu bar launch agent
 
-After install, both the daemon and menu bar app start automatically on every login.
+**After install, the menu bar app starts automatically on every login — the daemon does not.** Start the daemon from the menu bar (Daemon → Start Daemon) or run `macfan start daemon` once you're ready. This was changed deliberately so the daemon can be started/stopped on demand without digging into the terminal, and so a fresh login doesn't immediately start writing to the SMC before you've had a chance to check things.
 
+---
+
+## Manual Override Modes
+
+The menu bar dropdown includes a **Mode** section with three options, written to a shared `override.json` file that the daemon checks at the top of every poll cycle:
+
+| Mode     | Behavior |
+|----------|----------|
+| **Auto**   | Default. The daemon runs the full curve, cooldown, and watchdog logic described above. |
+| **Manual** | Both fans are held at a fixed RPM you set. Curve, cooldown, and emergency temp logic are bypassed — only the speed limit emergency watchdog still applies as a final safety net. |
+| **Max**    | Both fans are forced to hardware maximum, same as a temperature emergency. |
+
+**Manual mode controls:**
+
+```
+Manual RPM: 4000
+  [ – 500 ]  [ – 100 ]  [ + 100 ]  [ + 500 ]
+  [ Enter RPM... ]
+  → Set Manual
+```
+
+The `+`/`-` buttons nudge the held RPM value. **Enter RPM...** opens a native dialog for typing an exact value. Values are clamped to the lowest `floor_rpm` and highest `max_rpm` across both fans. **Set Manual** writes the override — the daemon picks it up on its next poll (within `poll_interval_seconds`).
+
+Switching back to **Auto** clears the override. The daemon resets its ramp state and starts fresh from the floor, so there's no leftover cooldown hold from before the override was applied.
+
+This exists as a manual fallback for situations the curve doesn't handle well — sustained heavy load where you'd rather just pin the fans yourself, or quickly silencing them for a video call regardless of temperature.
+
+---
+
+## CPU Throttling & Speed Limit Watchdog
+
+This is the most important addition since the original release, and the reason for several of the config changes above.
+
+### The problem
+
+On the MacBookPro11,5, macOS's thermal governor can assert `CPU_Speed_Limit` (visible via `pmset -g therm` / `pmset -g thermlog`) well before any temperature emergency threshold is reached. If the machine sits at a "warm but not alarming" temperature (e.g. 75-78°C) for too long, macOS throttles the CPU to shed heat — sometimes down to its floor value, from which it **does not recover without a reboot**.
+
+A fan curve that only reacts to temperature can miss this entirely: the temperature looks fine, but the *duration* at that temperature was the problem. The original linear curve with `max_temp: 95` and `start_temp: 66` left too much headroom — fans never got aggressive enough in the 70-80°C range to actually bring temps back down, so the machine would hover there indefinitely under load.
+
+### The fix — three parts working together
+
+1. **Lower `max_temp` (85°C) + exponential curve (`exponent: 0.6`)** — fans ramp harder in the 70-80°C range specifically, the zone where throttling starts. This is enough on its own for most sustained loads (tested against 4K video playback) — temps that hover at 73-78°C get pushed back down into the 60s instead of holding steady.
+
+2. **Cooldown (`cooldown_seconds`)** — once fans ramp up, they hold that RPM until temp has been back below `start_temp - hysteresis` for the full cooldown period. Without this, fans would back off the moment temp dipped slightly, temps would creep back up, and the cycle would repeat without ever making real progress.
+
+3. **Speed limit watchdog (`speed_watcher.py`)** — a background thread runs `pmset -g thermlog` for the life of the daemon and updates instantly whenever `CPU_Speed_Limit` changes (no polling delay). Every tick checks this value:
+
+   - **`speed_limit < speed_limit_warn`** (default 70%) — fans forced to max immediately, cooldown timer reset. The curve's response was too slow; override it.
+   - **`speed_limit <= speed_limit_emergency`** (default 60%) — daemon restores Apple auto control and exits. At this point Apple's own (much more aggressive) auto fan response recovers the speed limit faster than our curve can, and 60% gives comfortable margin above the unrecoverable floor (~20%).
+
+The menu bar always displays the current `CPU_Speed_Limit` percentage (via `pmset -g therm` on its normal 3-second refresh), with a `⚠` warning indicator when it drops below `speed_limit_warn` — so you have an at-a-glance signal of throttling state without needing a terminal open.
+
+### Tuning notes
+
+If you're adapting this for your own hardware, the values above (`max_temp: 85`, `exponent: 0.6`, `cooldown_seconds: 45`, `hysteresis: 2`, `floor_rpm` raised to 3000-3100) were arrived at through iterative testing against real throttling events. Start with these as a baseline and adjust `exponent` first if fans feel too aggressive or not aggressive enough in the mid-range — it has the biggest effect on day-to-day noise level without touching the safety thresholds.
 ---
 
 ## Security
@@ -235,19 +303,35 @@ If you ever rebuild the binary (`make`), re-run `./install.sh` to reapply the ow
 ./install.sh --uninstall
 ```
 
-This unloads both launch agents, removes the plists, removes the sudoers rule, restores the binary to user ownership, and returns fans to Apple auto control.
+This unloads both launch agents (if running), removes the plists, removes the sudoers rule, restores the binary to user ownership, and returns fans to Apple auto control.
 
 ---
 
 ## Managing Processes
 
-After install, use the `macfan` alias (added automatically by `install.sh`) to control both processes:
+### From the menu bar
+
+The menu bar app includes daemon controls directly in the dropdown:
+
+```
+Daemon: ● running
+  → Start Daemon
+  → Stop Daemon
+```
+
+**Start Daemon** / **Stop Daemon** call `launchctl load` / `launchctl unload` on the daemon's launch agent — no terminal needed for everyday use. Stopping the daemon triggers its normal shutdown path, which restores Apple auto fan control before exiting.
+
+### From the terminal
+
+Use the `macfan` alias (added automatically by `install.sh`):
 
 ```bash
 macfan status               # show whether daemon and menu bar are running
 macfan start                # start both
 macfan stop                 # stop both
 macfan restart              # restart both
+macfan start daemon         # start daemon only
+macfan stop daemon          # stop daemon only
 macfan start menubar        # start menu bar only
 macfan stop menubar         # stop menu bar only
 macfan restart daemon       # restart daemon only
@@ -262,7 +346,11 @@ To start/stop manually without the alias:
 ```bash
 launchctl load   ~/Library/LaunchAgents/com.macfancontrol.menubar.plist
 launchctl unload ~/Library/LaunchAgents/com.macfancontrol.menubar.plist
+launchctl load   ~/Library/LaunchAgents/com.macfancontrol.daemon.plist
+launchctl unload ~/Library/LaunchAgents/com.macfancontrol.daemon.plist
 ```
+
+**Note:** the menu bar app starts automatically on login (`RunAtLoad: true`); the daemon does not (`RunAtLoad: false`). This is intentional — see [Installation step 8](#8-run-the-install-script).
 
 ---
 
@@ -293,23 +381,25 @@ RPM
  ^
 max ─────────────────────────────/──────
      |                          /
-     |                         /
-floor───────────────────────/──
-     |              ───────/
-     |         ────/
-     +─────────────────────────────> Target_Sensor Temp (C)
-              62  66              88
+     |                        /
+     |                      ╱
+floor─────────────────────╱────
+     |              ─────╱
+     |         ────╱
+     +─────────────────────────────> Target Sensor Temp (C)
+              58  60              85
                ↑   ↑               ↑
           ramp-down  ramp-up     emergency
           threshold  threshold    override
 ```
 
-- **Below 66°C** — fans hold at floor RPM (quiet)
-- **66°C to 88°C** — linear ramp to max RPM
-- **At 88°C** — immediate override to hardware maximum
-- **Hysteresis** — fans only start ramping down once temp drops below 62°C, preventing rapid oscillation
+- **Below `start_temp`** — fans hold at `floor_rpm` (quiet)
+- **`start_temp` to `max_temp`** — exponential ramp from `floor_rpm` to `max_rpm`. With `exponent < 1.0`, the curve bulges upward in the middle of the range — fans get noticeably more RPM in the 70-80°C zone than a straight line would give, without being loud right at `start_temp`
+- **At `max_temp`** — immediate override to hardware maximum
+- **Hysteresis** — once ramping, fans won't even be *considered* for ramp-down until temp drops below `start_temp - hysteresis`
+- **Cooldown** — after crossing that threshold, temp must stay below it for `cooldown_seconds` (and `CPU_Speed_Limit` must be healthy) before RPM is actually allowed to decrease. Until then, fans hold their current RPM regardless of what the curve would otherwise calculate.
 
-Each fan scales against its own hardware min/max independently.
+Each fan scales against its own hardware min/max independently. See [CPU Throttling & Speed Limit Watchdog](#cpu-throttling--speed-limit-watchdog) for why the curve is shaped this way.
 
 ---
 
@@ -326,14 +416,16 @@ logs/menubar.err    # menu bar stderr
 
 ## SMC Keys (MacBookPro11,5)
 
-| Key  | Description            | Notes                         |
-|------|------------------------|-------------------------------|
-| TG0D | GPU die temperature    | Primary control sensor        |
-| TC0F | CPU die temperature    | Primary control sensor        |
-| TC1C | CPU core 1 temperature | Informational                 |
-| F0Tg | Fan 0 target RPM       | fpe2 encoded, big-endian      |
-| F1Tg | Fan 1 target RPM       | fpe2 encoded, big-endian      |
-| FS!  | Forced mode bitmask    | bit 0 = fan 0, bit 1 = fan 1  |
+| Key  | Description            | Notes                                  |
+|------|-------------------------|-----------------------------------------|
+| TC0F | Hottest system sensor   | **Primary control sensor** (`target_sensor_key`) |
+| TG0D | GPU die temperature     | Secondary / display only               |
+| TC1C | CPU core 1 temperature  | Secondary / informational              |
+| F0Tg | Fan 0 target RPM        | fpe2 encoded, big-endian               |
+| F1Tg | Fan 1 target RPM        | fpe2 encoded, big-endian               |
+| FS!  | Forced mode bitmask     | bit 0 = fan 0, bit 1 = fan 1            |
+
+`CPU_Speed_Limit` is read separately via `pmset -g thermlog` (daemon, live-streamed) and `pmset -g therm` (menu bar, polled) — it is not an SMC key.
 
 ---
 
