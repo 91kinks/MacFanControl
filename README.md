@@ -277,6 +277,7 @@ The menu bar always displays the current `CPU_Speed_Limit` percentage (via `pmse
 ### Tuning notes
 
 If you're adapting this for your own hardware, the values above (`max_temp: 85`, `exponent: 0.6`, `cooldown_seconds: 45`, `hysteresis: 2`, `floor_rpm` raised to 3000-3100) were arrived at through iterative testing against real throttling events. Start with these as a baseline and adjust `exponent` first if fans feel too aggressive or not aggressive enough in the mid-range — it has the biggest effect on day-to-day noise level without touching the safety thresholds.
+
 ---
 
 ## Security
