@@ -48,3 +48,6 @@ native/*.o
 # ai_project_context.md
 ai_project_context.md
 
+# override.json
+override.json
+
