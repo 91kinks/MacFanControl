@@ -343,6 +343,36 @@ class MacFanControlApp(rumps.App):
                 )
 
     # ---------------------------------------------------------------------------
+    # Toggle controls based on daemon state
+    # ---------------------------------------------------------------------------
+    def _set_daemon_dependent_controls(self, running: bool):
+        """
+        Enable/disable controls based on whether the daemon is running.
+        Manual override controls only matter once the daemon is alive to
+        read override.json, so keep them greyed out until then.
+        """
+        if running:
+            self.daemon_start_item.set_callback(None)
+            self.daemon_stop_item.set_callback(self.on_stop_daemon)
+
+            self.btn_minus500.set_callback(self.on_minus500)
+            self.btn_minus100.set_callback(self.on_minus100)
+            self.btn_plus100.set_callback(self.on_plus100)
+            self.btn_plus500.set_callback(self.on_plus500)
+            self.btn_enter_rpm.set_callback(self.on_enter_rpm)
+            self.btn_set_manual.set_callback(self.on_set_manual)
+        else:
+            self.daemon_start_item.set_callback(self.on_start_daemon)
+            self.daemon_stop_item.set_callback(None)
+
+            self.btn_minus500.set_callback(None)
+            self.btn_minus100.set_callback(None)
+            self.btn_plus100.set_callback(None)
+            self.btn_plus500.set_callback(None)
+            self.btn_enter_rpm.set_callback(None)
+            self.btn_set_manual.set_callback(None)
+
+    # ---------------------------------------------------------------------------
     # Refresh — called every REFRESH_SECONDS
     # ---------------------------------------------------------------------------
     def refresh(self, _):
@@ -417,6 +447,7 @@ class MacFanControlApp(rumps.App):
         )
         self.daemon_start_item.title = "  → Start Daemon"
         self.daemon_stop_item.title  = "  → Stop Daemon"
+        self._set_daemon_dependent_controls(running)
 
         # --- Title bar ---
         fan_rpm    = fans[0]["actual"] if fans else 0
